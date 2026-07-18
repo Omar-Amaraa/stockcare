@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Room - Project StockCare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #f8fafc; /* Slate 50 */
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7); /* Slate 800 with opacity */
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(51, 65, 85, 0.5); /* Slate 700 */
+        }
+        /* Custom range slider styling */
+        input[type=range] {
+            accent-color: #0ea5e9; /* Sky 500 */
+        }
+    </style>
+</head>
+<body class="p-6 min-h-screen flex flex-col items-center">
+
+    <!-- Header -->
+    <header class="w-full max-w-6xl mb-8 flex justify-between items-end border-b border-slate-700 pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-white tracking-tight">StockCare <span class="text-sky-500">Data Room</span></h1>
+            <p class="text-slate-400 mt-1">Analyse Financière & ESG - Marché Tunisien</p>
+        </div>
+        <div class="text-right">
+            <p class="text-sm text-slate-500 font-mono">DATE: 18 JUILLET 2026</p>
+            <p class="text-sm text-slate-500 font-mono">LOC: TUNIS, TUNISIE</p>
+        </div>
+    </header>
+
+    <main class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Column: Market Data (Static) -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Market Fuel Prices -->
+            <div class="glass-panel p-6 rounded-xl">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    Index Énergétique (TND)
+                </h2>
+                <div class="space-y-4">
+                    <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 flex justify-between items-center">
+                        <span class="text-slate-300 font-medium">Gasoil Sans Soufre</span>
+                        <span class="text-2xl font-bold text-sky-400" id="fixed-diesel">2.21 DT</span>
+                    </div>
+                    <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 flex justify-between items-center">
+                        <span class="text-slate-300 font-medium">Essence Sans Plomb</span>
+                        <span class="text-xl font-semibold text-slate-400">2.53 DT</span>
+                    </div>
+                </div>
+                <div class="mt-4 text-xs text-slate-500">
+                    Source: OpenVan.camp / GlobalPetrolPrices (18 Juil. 2026)
+                </div>
+            </div>
+
+            <!-- ESG Constants -->
+            <div class="glass-panel p-6 rounded-xl">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Facteurs ESG (Normes)
+                </h2>
+                <ul class="space-y-3 text-sm text-slate-300">
+                    <li class="flex justify-between border-b border-slate-700 pb-2">
+                        <span>Émission CO2 / L (Gasoil)</span>
+                        <span class="font-bold text-white">2.67 kg</span>
+                    </li>
+                    <li class="flex justify-between border-b border-slate-700 pb-2">
+                        <span>Jours ouvrés / An</span>
+                        <span class="font-bold text-white">300 jours</span>
+                    </li>
+                    <li class="flex justify-between pb-1">
+                        <span>Type d'Optimisation</span>
+                        <span class="font-bold text-sky-400">Agent MILP</span>
+                    </li>
+                </ul>
+                <div class="mt-4 text-xs text-slate-500 bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                    <span class="text-emerald-500 font-semibold block mb-1"><i class="fa-solid fa-check-circle mr-1"></i> Source Certifiée :</span> 
+                    Norme de comptabilité carbone validée par l'<strong>ADEME</strong> (Agence de la Transition Écologique) via la <em>Base Empreinte®</em>(www.hellocarbo.com/blog/calculer/co2-voiture/).
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Interactive ROI Calculator -->
+        <div class="lg:col-span-2 space-y-6">
+            <div class="glass-panel p-6 rounded-xl">
+                <h2 class="text-xl font-bold text-white mb-6">Simulateur de Rentabilité Opérationnelle (OPEX)</h2>
+                
+                <!-- Controls -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-2">Taille de la Flotte (Camions)</label>
+                        <input type="range" id="fleet-size" min="5" max="50" value="15" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs text-slate-500 mt-1">
+                            <span>5</span>
+                            <span id="fleet-val" class="font-bold text-white text-sm">15</span>
+                            <span>50</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-2">Distance Moyenne / Camion / Jour (km)</label>
+                        <input type="range" id="daily-km" min="50" max="500" step="10" value="200" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs text-slate-500 mt-1">
+                            <span>50 km</span>
+                            <span id="km-val" class="font-bold text-white text-sm">200 km</span>
+                            <span>500 km</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-2">Conso. Frigorifique (L/100km)</label>
+                        <input type="range" id="consumption" min="10" max="30" step="1" value="18" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs text-slate-500 mt-1">
+                            <span>10 L</span>
+                            <span id="cons-val" class="font-bold text-white text-sm">18 L</span>
+                            <span>30 L</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-sky-400 mb-2">Optimisation StockCare (Distance Évitée %)</label>
+                        <input type="range" id="optimization" min="5" max="30" step="1" value="20" class="w-full h-2 bg-sky-900 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs text-sky-600 mt-1">
+                            <span>5%</span>
+                            <span id="opt-val" class="font-bold text-sky-400 text-sm">20%</span>
+                            <span>30%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Divider -->
+                <div class="h-px w-full bg-slate-700 mb-6"></div>
+
+                <!-- Results Dashboard -->
+                <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Résultats Projetés (Annuel)</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Fuel Saved -->
+                    <div class="bg-slate-800 border border-slate-700 rounded-lg p-5">
+                        <p class="text-sm text-slate-400 mb-1">Carburant Évité</p>
+                        <p class="text-2xl font-bold text-white" id="res-fuel">0 L</p>
+                        <p class="text-xs text-slate-500 mt-2">Par an</p>
+                    </div>
+                    
+                    <!-- OPEX Margin -->
+                    <div class="bg-slate-800 border border-sky-500/50 rounded-lg p-5 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-16 h-16 bg-sky-500/10 rounded-bl-full"></div>
+                        <p class="text-sm text-sky-300 mb-1">Marge Nette (OPEX)</p>
+                        <p class="text-3xl font-black text-sky-400" id="res-money">0 DT</p>
+                        <p class="text-xs text-sky-500/70 mt-2">Économie financière brute</p>
+                    </div>
+
+                    <!-- CO2 Saved -->
+                    <div class="bg-slate-800 border border-emerald-500/50 rounded-lg p-5 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-bl-full"></div>
+                        <p class="text-sm text-emerald-400 mb-1">Impact ESG (CO2)</p>
+                        <p class="text-3xl font-black text-emerald-400" id="res-co2">0 Tonnes</p>
+                        <p class="text-xs text-emerald-500/70 mt-2">Émissions carbone évitées</p>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Context Box -->
+            <div class="bg-slate-800 border-l-4 border-sky-500 p-4 rounded-r-lg">
+                <p class="text-sm text-slate-300">
+                    <strong class="text-white"></strong> L'algorithme MILP ne se contente pas de tracer des routes, il annule physiquement l'usure logistique. Aux prix réels du marché de juillet 2026, la réduction générée finance l'abonnement SaaS de StockCare en quelques jours de fonctionnement. Le certificat ESG débloque l'accès aux appels d'offres publics.
+                </p>
+            </div>
+        </div>
+
+
+    </main>
+
+    <!-- Script for calculations -->
+    <script>
+        const DIESEL_PRICE = 2.21;
+        const CO2_PER_LITER = 2.67;
+        const DAYS_PER_YEAR = 300;
+
+        // Elements
+        const elFleet = document.getElementById('fleet-size');
+        const elKm = document.getElementById('daily-km');
+        const elCons = document.getElementById('consumption');
+        const elOpt = document.getElementById('optimization');
+
+        const valFleet = document.getElementById('fleet-val');
+        const valKm = document.getElementById('km-val');
+        const valCons = document.getElementById('cons-val');
+        const valOpt = document.getElementById('opt-val');
+
+        const resFuel = document.getElementById('res-fuel');
+        const resMoney = document.getElementById('res-money');
+        const resCo2 = document.getElementById('res-co2');
+
+        function calculateROI() {
+            // Get values
+            const fleet = parseInt(elFleet.value);
+            const km = parseInt(elKm.value);
+            const cons = parseInt(elCons.value);
+            const opt = parseInt(elOpt.value) / 100;
+
+            // Update Labels
+            valFleet.textContent = fleet;
+            valKm.textContent = km + " km";
+            valCons.textContent = cons + " L";
+            valOpt.textContent = (opt * 100).toFixed(0) + "%";
+
+            // Math
+            const totalDailyKm = fleet * km;
+            const savedDailyKm = totalDailyKm * opt;
+            const savedDailyLiters = (savedDailyKm / 100) * cons;
+            
+            const savedAnnualLiters = savedDailyLiters * DAYS_PER_YEAR;
+            const savedAnnualMoney = savedAnnualLiters * DIESEL_PRICE;
+            const savedAnnualCo2Kg = savedAnnualLiters * CO2_PER_LITER;
+            const savedAnnualCo2Tonnes = savedAnnualCo2Kg / 1000;
+
+            // Format formatting (French locale)
+            const formatNumber = (num) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(num);
+
+            resFuel.textContent = formatNumber(savedAnnualLiters) + " L";
+            resMoney.textContent = formatNumber(savedAnnualMoney) + " DT";
+            resCo2.textContent = formatNumber(savedAnnualCo2Tonnes) + " T";
+        }
+
+        // Event Listeners
+        elFleet.addEventListener('input', calculateROI);
+        elKm.addEventListener('input', calculateROI);
+        elCons.addEventListener('input', calculateROI);
+        elOpt.addEventListener('input', calculateROI);
+
+        // Init
+        calculateROI();
+    </script>
+</body>
+</html>
