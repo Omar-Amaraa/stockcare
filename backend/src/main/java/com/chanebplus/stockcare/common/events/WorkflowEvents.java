@@ -24,4 +24,7 @@ public final class WorkflowEvents {
 
     /** A request became prioritized (route-optimization readiness signal). */
     public record RequestPrioritized(UUID requestId, UUID depotId) {}
+
+    /** A request was approved for planning; the depot backlog can be routed. */
+    public record RequestApprovedForPlanning(UUID requestId, UUID depotId) {}
 }

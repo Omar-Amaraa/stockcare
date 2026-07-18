@@ -1,0 +1,50 @@
+{
+  "_comment": "Operating parameters for the StockCare routing service. The backend sends only stops, priority coefficients and vehicles; every solver-tuning knob lives here so ops can retune without redeploying the JVM.",
+  "_version": "1.0",
+
+  "priorite": {
+    "_comment": "The priority model is the single source of the coefficient; this service only rescales it. The Spring backend emits 0..100 (MockPriorityCalculationService), while the MILP objective and the SLA anchors below live in the catalogue's 0..1 domain (0.058..0.662). Set echelle_entree=1.0 if a future priority model already emits 0..1.",
+    "echelle_entree": 100.0,
+    "borne_min": 0.0,
+    "borne_max": 1.0
+  },
+
+  "sla": {
+    "_comment": "Deadline T[i] in minutes, interpolated from the aggregated priority coefficient. Higher priority => tighter window. Mirrors milp_care/config/config.json.",
+    "priorite_haute": 0.66,
+    "fenetre_haute_min": 45.0,
+    "priorite_basse": 0.06,
+    "fenetre_basse_min": 210.0,
+    "bonus_chaine_froid_min": -15.0,
+    "plancher_min": 30.0
+  },
+
+  "dechargement": {
+    "_comment": "Service time sigma[i] in minutes: flat rate + increment per order line.",
+    "forfait_min": 3.0,
+    "par_ligne_min": 0.8,
+    "plafond_min": 25.0,
+    "lignes_par_defaut": 3
+  },
+
+  "geometrie": {
+    "_comment": "TomTom calibration on 13 real Sousse trips, 18/07/2026.",
+    "facteur_sinuosite": 1.6,
+    "vitesse_effective_kmh": 20.9
+  },
+
+  "flotte": {
+    "_comment": "Vehicle capacities and refrigeration come from the backend. Only the per-km cost is set here, since the fleet table carries no cost column.",
+    "cout_km_defaut": 1.1,
+    "cout_km_refrigere": 1.75
+  },
+
+  "solveur": {
+    "H_max": 480.0,
+    "w_p": 5.0,
+    "gamma": 0.1,
+    "w_v": 50.0,
+    "time_limit": 60,
+    "verbose": false
+  }
+}

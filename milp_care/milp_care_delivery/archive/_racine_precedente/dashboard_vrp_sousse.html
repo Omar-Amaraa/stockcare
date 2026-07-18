@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Pilotage VRP pharmaceutique — Sousse</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f7f8fa;
+    --card: #ffffff;
+    --line: #e3e6ec;
+    --ink: #14181f;
+    --muted: #626b7a;
+    --ok: #0b7a4b;
+    --ok-bg: #e8f6ef;
+    --warn: #b06a00;
+    --warn-bg: #fdf3e2;
+    --bad: #b3001b;
+    --bad-bg: #fdecee;
+    --v0: #1f6feb;
+    --v2: #d1660a;
+    --cold: #0a7ea4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 20px;
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -.2px; }
+  .sub { color: var(--muted); font-size: 12.5px; margin-bottom: 18px; }
+  .sub b { color: var(--ink); font-weight: 600; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 13px 15px; }
+  .kpi .label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+  .kpi .val { font-size: 25px; font-weight: 650; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .kpi .note { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  .card h2 { font-size: 14px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .4px;
+       color: var(--muted); font-weight: 600; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 8px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tag { display: inline-block; font-size: 10.5px; font-weight: 650; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
+  .t-ok   { background: var(--ok-bg);   color: var(--ok); }
+  .t-warn { background: var(--warn-bg); color: var(--warn); }
+  .t-bad  { background: var(--bad-bg);  color: var(--bad); }
+  .t-cold { background: #e4f4f9; color: var(--cold); }
+  .name { font-weight: 550; }
+  .lib { color: var(--muted); font-size: 11.5px; }
+  .bar { height: 5px; border-radius: 3px; background: #eceff3; overflow: hidden; min-width: 46px; }
+  .bar > i { display: block; height: 100%; border-radius: 3px; }
+
+  .banner { border-radius: 9px; padding: 11px 14px; font-size: 12.5px; margin-bottom: 16px; border: 1px solid; }
+  .b-live { background: #eef4ff; border-color: #c8dcff; color: #0d3b8f; }
+  .b-warn { background: var(--warn-bg); border-color: #f0d9a8; color: var(--warn); }
+  .b-err  { background: var(--bad-bg);  border-color: #f2c6cc; color: var(--bad); }
+  .muted { color: var(--muted); }
+  .foot { font-size: 11.5px; color: var(--muted); line-height: 1.65; }
+</style>
+</head>
+<body>
+
+<h1>Pilotage VRP pharmaceutique — Sousse</h1>
+<div class="sub">
+  Dépôt réel : <b>45 Rue Safia Farhat, Sousse 4054</b>.
+  Plan optimisé par <b>MILP exact</b> (CBC, statut Optimal) sur 10 pharmacies géolocalisées.
+  Les temps de trajet sont <b>réinterrogés en direct</b> auprès de TomTom à chaque ouverture, trafic compris,
+  puis confrontés aux échéances SLA du plan.
+</div>
+
+<div id="banner" class="banner b-live">Interrogation du trafic en direct…</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="card">
+  <h2><span class="dot" style="background:var(--v0)"></span> Véhicule 0 — réfrigéré · capacité 90 u · 1,85 TND/km</h2>
+  <div id="tour0"></div>
+</div>
+
+<div class="card">
+  <h2><span class="dot" style="background:var(--v2)"></span> Véhicule 2 — sec · capacité 110 u · 1,10 TND/km</h2>
+  <div id="tour2"></div>
+</div>
+
+<div class="card">
+  <h2>Densité de pharmacies dans la zone</h2>
+  <div id="zone" class="muted">Chargement…</div>
+</div>
+
+<div class="card">
+  <div class="foot">
+    <b>Provenance des données.</b>
+    Coordonnées des pharmacies et temps de trajet : TomTom (Places&nbsp;+&nbsp;Routing, trafic live).
+    Plan de tournées : modèle MILP résolu hors-ligne par CBC, objectif 152,56 (24,07 km).
+    Dépôt géolocalisé par l'utilisateur, adresse vérifiée par reverse-geocoding TomTom.
+    <br>
+    <b>Données simulées.</b> Les quantités commandées, priorités thérapeutiques, temps de déchargement
+    et échéances SLA sont <b>simulés</b> sur des profils plausibles — ils ne proviennent pas d'un système réel.
+    Le branchement de la couche&nbsp;2 remplacera ces valeurs.
+    <br>
+    <b>Limite connue.</b> Le plan a été optimisé sur une matrice haversine&nbsp;×&nbsp;1,60 à 20,9&nbsp;km/h,
+    calibrée sur 9 itinéraires TomTom réels. Les écarts affichés ci-dessus mesurent précisément
+    la dérive entre cette approximation et le routier réel du moment.
+  </div>
+</div>
+
+<script>
+const PLAN = {
+  noeuds: [
+    {id:0,  nom:"Dépôt — 45 Rue Safia Farhat",    lib:"Sousse 4054",           lon:10.6054722, lat:35.8383611, q:0,    cc:0, pr:0,    sigma:0,    T:0,     s:0},
+    {id:1,  nom:"Pharmacie Hafedh Frigui",        lib:"Insuline / vaccins",    lon:10.6335,    lat:35.8258,    q:11.8, cc:1, pr:1.00, sigma:9.2,  T:87.9,  s:35.1},
+    {id:2,  nom:"Pharmacie Chehata Raoudha",      lib:"Sérums thermosensibles",lon:10.6368,    lat:35.8293,    q:13.9, cc:1, pr:0.87, sigma:7.4,  T:70.8,  s:46.5},
+    {id:3,  nom:"Pharmacie Zaoui",                lib:"Parapharmacie",         lon:10.633784,  lat:35.830978,  q:29.4, cc:0, pr:0.15, sigma:10.2, T:142.9, s:55.4},
+    {id:4,  nom:"Pharmacie Nouira Souha",         lib:"Insuline / vaccins",    lon:10.629957,  lat:35.829877,  q:15.4, cc:1, pr:0.89, sigma:10.5, T:65.2,  s:22.0},
+    {id:5,  nom:"Pharmacie Chemli Foued",         lib:"Parapharmacie",         lon:10.6369,    lat:35.8202,    q:22.3, cc:0, pr:0.12, sigma:7.2,  T:131.7, s:40.3},
+    {id:6,  nom:"Pharmacie de Nuit NEJI K.",      lib:"Antibio. injectables",  lon:10.632363,  lat:35.831623,  q:26.1, cc:0, pr:0.83, sigma:8.1,  T:48.4,  s:11.7},
+    {id:7,  nom:"Pharmacie Insaf Skhiri Ajina",   lib:"Antibio. injectables",  lon:10.638412,  lat:35.832505,  q:11.8, cc:0, pr:0.76, sigma:6.3,  T:51.3,  s:22.3},
+    {id:8,  nom:"Pharmacie Health",               lib:"Parapharmacie",         lon:10.6416,    lat:35.8314,    q:27.6, cc:0, pr:0.16, sigma:4.2,  T:175.3, s:30.0},
+    {id:9,  nom:"Pharmacie Mon Armoire",          lib:"Antibio. injectables",  lon:10.6311,    lat:35.8177,    q:19.2, cc:0, pr:0.68, sigma:11.1, T:70.0,  s:50.2},
+    {id:10, nom:"Pharmacie Nénupharma",           lib:"Insuline / vaccins",    lon:10.6257,    lat:35.8303,    q:13.1, cc:1, pr:1.00, sigma:10.9, T:84.4,  s:9.3}
+  ],
+  tournees: [
+    {k:0, couleur:"var(--v0)", ordre:[0,10,4,1,2,3,0], kmPlan:10.36, coutKm:1.85, cap:90},
+    {k:2, couleur:"var(--v2)", ordre:[0,6,7,8,5,9,0],  kmPlan:13.71, coutKm:1.10, cap:110}
+  ]
+};
+const N = Object.fromEntries(PLAN.noeuds.map(n => [n.id, n]));
+
+function unwrap(r) {
+  if (!r) return null;
+  if (r.isError) throw new Error("Outil MCP en erreur");
+  if (r.structuredContent) return r.structuredContent;
+  try { return JSON.parse(r.content[0].text); } catch (e) { return null; }
+}
+
+// Récupère les segments réels (distance + durée avec trafic) d'une tournée
+async function legsReels(ordre) {
+  const locations = ordre.map(i => [N[i].lon, N[i].lat]);
+  const r = await window.cowork.callMcpTool(
+    "mcp__8ede2215-74fb-4263-8514-d7de86df0009__tomtom-routing",
+    { locations, routeRepresentation: "summaryOnly", traffic: "live", response_detail: "compact" }
+  );
+  const data = unwrap(r);
+  const f = data && data.features && data.features[0];
+  if (!f) throw new Error("Réponse de routage vide");
+  const legs = (f.properties.sections.leg || []).map(l => ({
+    m: l.summary.lengthInMeters,
+    s: l.summary.travelTimeInSeconds,
+    retardTrafic: l.summary.trafficDelayInSeconds || 0
+  }));
+  return { legs, total: f.properties.summary };
+}
+
+function statutSLA(arrivee, T) {
+  const marge = T - arrivee;
+  if (marge < 0)  return { cls: "t-bad",  txt: `+${(-marge).toFixed(0)} min de retard` };
+  if (marge < 10) return { cls: "t-warn", txt: `marge ${marge.toFixed(0)} min` };
+  return { cls: "t-ok", txt: `marge ${marge.toFixed(0)} min` };
+}
+
+function rendreTournee(el, tour, res) {
+  const { legs } = res;
+  let horloge = 0;
+  const lignes = [];
+  for (let p = 1; p < tour.ordre.length; p++) {
+    const idx = tour.ordre[p];
+    const trajetMin = legs[p - 1] ? legs[p - 1].s / 60 : 0;
+    horloge += trajetMin;
+    if (idx === 0) {
+      lignes.push({ retour: true, horloge, km: legs[p - 1] ? legs[p - 1].m / 1000 : 0 });
+      break;
+    }
+    const n = N[idx];
+    lignes.push({
+      n, arrivee: horloge, km: legs[p - 1] ? legs[p - 1].m / 1000 : 0,
+      ecart: horloge - n.s, embouteillage: legs[p - 1] ? legs[p - 1].retardTrafic : 0
+    });
+    horloge += n.sigma;
+  }
+
+  let html = `<table><thead><tr>
+      <th>Étape</th><th>Pharmacie</th><th class="num">Trajet</th>
+      <th class="num">Arrivée live</th><th class="num">vs plan</th>
+      <th>Statut SLA</th><th class="num">Charge</th></tr></thead><tbody>`;
+  let etape = 0;
+  for (const l of lignes) {
+    if (l.retour) {
+      html += `<tr><td class="muted">↩</td><td class="muted">Retour dépôt</td>
+        <td class="num muted">${l.km.toFixed(2)} km</td>
+        <td class="num muted">${l.horloge.toFixed(0)} min</td>
+        <td colspan="3"></td></tr>`;
+      continue;
+    }
+    etape++;
+    const st = statutSLA(l.arrivee, l.n.T);
+    const dev = l.ecart >= 0 ? `+${l.ecart.toFixed(0)}` : l.ecart.toFixed(0);
+    const devCls = Math.abs(l.ecart) > 8 ? "t-warn" : "t-ok";
+    const pct = Math.min(100, (l.n.q / tour.cap) * 100);
+    html += `<tr>
+      <td class="muted">${etape}</td>
+      <td>
+        <span class="name">${l.n.nom}</span>
+        ${l.n.cc ? '<span class="tag t-cold">froid</span>' : ''}
+        <div class="lib">${l.n.lib} · priorité ${l.n.pr.toFixed(2)}</div>
+      </td>
+      <td class="num">${l.km.toFixed(2)} km
+        ${l.embouteillage > 30 ? `<div class="lib" style="color:var(--warn)">+${(l.embouteillage/60).toFixed(0)} min trafic</div>` : ''}
+      </td>
+      <td class="num"><b>${l.arrivee.toFixed(0)} min</b><div class="lib">SLA ${l.n.T.toFixed(0)}</div></td>
+      <td class="num"><span class="tag ${devCls}">${dev} min</span></td>
+      <td><span class="tag ${st.cls}">${st.txt}</span></td>
+      <td class="num">${l.n.q.toFixed(1)} u
+        <div class="bar"><i style="width:${pct}%;background:${tour.couleur}"></i></div>
+      </td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+  el.innerHTML = html;
+  return lignes.filter(l => !l.retour);
+}
+
+function rendreKpis(toutesLignes, totaux) {
+  const enRetard = toutesLignes.filter(l => l.arrivee > l.n.T);
+  const froid = toutesLignes.filter(l => l.n.cc === 1);
+  const froidRetard = froid.filter(l => l.arrivee > l.n.T);
+  const kmReels = totaux.reduce((a, t) => a + t.lengthInMeters, 0) / 1000;
+  const kmPlan = PLAN.tournees.reduce((a, t) => a + t.kmPlan, 0);
+  const derive = ((kmReels - kmPlan) / kmPlan) * 100;
+  const cout = PLAN.tournees.reduce((a, t, i) =>
+    a + (totaux[i].lengthInMeters / 1000) * t.coutKm, 0);
+  const traficMin = totaux.reduce((a, t) => a + (t.trafficDelayInSeconds || 0), 0) / 60;
+
+  const cartes = [
+    { label: "SLA respectés", val: `${toutesLignes.length - enRetard.length}/${toutesLignes.length}`,
+      note: enRetard.length ? `${enRetard.length} livraison(s) en dépassement` : "aucun dépassement" },
+    { label: "Chaîne du froid", val: `${froid.length - froidRetard.length}/${froid.length}`,
+      note: froidRetard.length ? "⚠ rupture de délai sur produit sensible" : "toutes dans les délais" },
+    { label: "Distance réelle", val: `${kmReels.toFixed(1)} km`,
+      note: `plan MILP ${kmPlan.toFixed(1)} km · ${derive >= 0 ? "+" : ""}${derive.toFixed(0)} %` },
+    { label: "Coût carburant", val: `${cout.toFixed(1)} TND`, note: "sur distances routières live" },
+    { label: "Perte trafic", val: `${traficMin.toFixed(0)} min`, note: "retard imputé aux conditions" }
+  ];
+  document.getElementById("kpis").innerHTML = cartes.map(c => `
+    <div class="kpi"><div class="label">${c.label}</div>
+      <div class="val">${c.val}</div><div class="note">${c.note}</div></div>`).join("");
+
+  const b = document.getElementById("banner");
+  const h = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  if (froidRetard.length) {
+    b.className = "banner b-err";
+    b.innerHTML = `<b>Alerte chaîne du froid.</b> ${froidRetard.length} livraison(s) thermosensible(s)
+      hors délai avec le trafic actuel — ${froidRetard.map(l => l.n.nom).join(", ")}. Relevé à ${h}.`;
+  } else if (enRetard.length) {
+    b.className = "banner b-warn";
+    b.innerHTML = `<b>${enRetard.length} SLA en dépassement</b> avec le trafic de ${h}
+      (${enRetard.map(l => l.n.nom).join(", ")}). Aucun produit sensible affecté.`;
+  } else {
+    b.className = "banner b-live";
+    b.innerHTML = `<b>Plan tenable.</b> Avec le trafic relevé à ${h}, les ${toutesLignes.length}
+      livraisons respectent leur échéance. Distance routière réelle ${kmReels.toFixed(1)} km.`;
+  }
+}
+
+async function densiteZone() {
+  const el = document.getElementById("zone");
+  try {
+    const r = await window.cowork.callMcpTool(
+      "mcp__8ede2215-74fb-4263-8514-d7de86df0009__tomtom-poi-search",
+      { query: "", poiCategories: ["PHARMACY"], position: [10.6346, 35.8256],
+        radius: 7000, limit: 1, countries: ["TN"], response_detail: "compact" }
+    );
+    const d = unwrap(r);
+    const total = d && d.properties ? d.properties.totalResults : null;
+    el.innerHTML = total
+      ? `<b style="font-size:20px;color:var(--ink)">${total}</b> pharmacies référencées par TomTom
+         dans un rayon de 7 km autour du centre de Sousse.
+         Le plan courant en dessert <b>10</b>, soit ${((10 / total) * 100).toFixed(0)} % du potentiel.
+         <div style="margin-top:6px" class="lib">Au-delà d'une dizaine de nœuds, le MILP exact
+         n'est plus résoluble en temps interactif — un découpage par secteur devient nécessaire.</div>`
+      : "Donnée de zone indisponible.";
+  } catch (e) {
+    el.textContent = "Densité de zone indisponible : " + e.message;
+  }
+}
+
+async function init() {
+  try {
+    const resultats = [];
+    for (const t of PLAN.tournees) resultats.push(await legsReels(t.ordre));
+
+    const l0 = rendreTournee(document.getElementById("tour0"), PLAN.tournees[0], resultats[0]);
+    const l2 = rendreTournee(document.getElementById("tour2"), PLAN.tournees[1], resultats[1]);
+    rendreKpis([...l0, ...l2], resultats.map(r => r.total));
+  } catch (e) {
+    const b = document.getElementById("banner");
+    b.className = "banner b-err";
+    b.innerHTML = `<b>Trafic live indisponible.</b> ${e.message}.
+      Les tournées ci-dessous restent celles du plan MILP, mais sans réévaluation temps réel.`;
+    document.getElementById("tour0").innerHTML = '<div class="muted">Données live non chargées.</div>';
+    document.getElementById("tour2").innerHTML = '<div class="muted">Données live non chargées.</div>';
+  }
+  densiteZone();
+}
+init();
+</script>
+</body>
+</html>

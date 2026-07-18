@@ -62,8 +62,10 @@ stockcare:
     auto-submit: ${STOCKCARE_WORKFLOW_AUTO_SUBMIT:false}
     # Calculate priority automatically through the request lifecycle.
     auto-priority: ${STOCKCARE_WORKFLOW_AUTO_PRIORITY:true}
-    # Readiness flag for automatic route planning (kept manual/approved in the MVP).
+    # Approving requests for planning triggers a fleet-wide MILP solve automatically.
     auto-route: ${STOCKCARE_WORKFLOW_AUTO_ROUTE:false}
+    # Minimum approved, unplanned requests before automatic planning fires.
+    auto-route-min-requests: ${STOCKCARE_WORKFLOW_AUTO_ROUTE_MIN_REQUESTS:1}
   # Mock vs external model wiring. Only "mock" is implemented in the MVP;
   # "external" hooks are prepared behind the same interfaces.
   models:
@@ -78,7 +80,9 @@ stockcare:
       version: mock-priority-v1
     route-optimization:
       mode: ${STOCKCARE_MODEL_ROUTE_MODE:mock}
-      version: mock-route-v1
+      url: ${STOCKCARE_ROUTING_URL:}
+      timeout-ms: ${STOCKCARE_ROUTING_TIMEOUT_MS:90000}
+      version: ${STOCKCARE_MODEL_ROUTE_VERSION:mock-route-v1}
 
 logging:
   pattern:

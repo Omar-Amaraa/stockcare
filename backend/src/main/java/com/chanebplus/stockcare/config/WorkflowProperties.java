@@ -14,8 +14,10 @@ public class WorkflowProperties {
     private boolean autoSubmit = false;
     /** If true, priority is (re)calculated automatically through the request lifecycle. */
     private boolean autoPriority = true;
-    /** Readiness flag for automatic route planning (kept manual/approved in the MVP). */
+    /** If true, approving requests for planning automatically triggers a fleet-wide MILP solve. */
     private boolean autoRoute = false;
+    /** Minimum number of approved, unplanned requests before automatic planning fires. */
+    private int autoRouteMinRequests = 1;
 
     public String getShortageAction() { return shortageAction; }
     public void setShortageAction(String shortageAction) { this.shortageAction = shortageAction; }
@@ -25,4 +27,6 @@ public class WorkflowProperties {
     public void setAutoPriority(boolean autoPriority) { this.autoPriority = autoPriority; }
     public boolean isAutoRoute() { return autoRoute; }
     public void setAutoRoute(boolean autoRoute) { this.autoRoute = autoRoute; }
+    public int getAutoRouteMinRequests() { return autoRouteMinRequests; }
+    public void setAutoRouteMinRequests(int autoRouteMinRequests) { this.autoRouteMinRequests = autoRouteMinRequests; }
 }

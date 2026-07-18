@@ -75,7 +75,7 @@ simulator + Leaflet map) · Notifications · Audit history views · Angular fron
 | Pharmacy ERP | `PharmacyErpAdapter` (batch 2) | — |
 | Stock prediction (LightGBM, `model.txt`) | `StockPredictionService` → **live** via `prediction-service/` REST | `stockcare.models.prediction.mode` (`external` wired) |
 | Priority coefficient model | `PriorityCalculationService` | `stockcare.models.priority.mode` |
-| MILP route optimizer | `RouteOptimizationService` (batch 2) | `stockcare.models.route-optimization.mode` |
+| MILP route optimizer (VRP, PuLP/CBC) | `RouteOptimizationService` → **live** via `routing-service/` REST | `stockcare.models.route-optimization.mode` (`external` wired) |
 | GPS / tracking provider | tracking simulator (batch 2) | — |
 | Notification providers | notification adapters (batch 2) | — |
 

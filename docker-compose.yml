@@ -29,6 +29,19 @@ services:
     networks:
       - stockcare
 
+  routing-service:
+    build:
+      # Root context: the image needs both routing-service/ and milp_care/ sources.
+      context: .
+      dockerfile: routing-service/Dockerfile
+    container_name: stockcare-routing
+    environment:
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "${ROUTING_PORT:-8002}:8000"
+    networks:
+      - stockcare
+
   backend:
     build:
       context: ./backend
@@ -37,6 +50,8 @@ services:
       db:
         condition: service_healthy
       prediction-service:
+        condition: service_started
+      routing-service:
         condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
@@ -49,6 +64,14 @@ services:
       # Use the real Python model by default; falls back to no-op if the service is unreachable.
       STOCKCARE_MODEL_PREDICTION_MODE: ${STOCKCARE_MODEL_PREDICTION_MODE:-external}
       STOCKCARE_PREDICTION_URL: ${STOCKCARE_PREDICTION_URL:-http://prediction-service:8000}
+      # Use the real MILP optimizer by default; planning fails loudly if it is unreachable.
+      STOCKCARE_MODEL_ROUTE_MODE: ${STOCKCARE_MODEL_ROUTE_MODE:-external}
+      STOCKCARE_ROUTING_URL: ${STOCKCARE_ROUTING_URL:-http://routing-service:8000}
+      STOCKCARE_ROUTING_TIMEOUT_MS: ${STOCKCARE_ROUTING_TIMEOUT_MS:-90000}
+      STOCKCARE_MODEL_ROUTE_VERSION: ${STOCKCARE_MODEL_ROUTE_VERSION:-milp-care-v1}
+      # Close the loop: approval -> MILP solve -> deliveries, with no manual planning step.
+      STOCKCARE_WORKFLOW_AUTO_ROUTE: ${STOCKCARE_WORKFLOW_AUTO_ROUTE:-true}
+      STOCKCARE_WORKFLOW_AUTO_ROUTE_MIN_REQUESTS: ${STOCKCARE_WORKFLOW_AUTO_ROUTE_MIN_REQUESTS:-1}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     networks:

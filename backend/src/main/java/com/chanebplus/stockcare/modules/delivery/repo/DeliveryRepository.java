@@ -29,4 +29,12 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     @Query("select case when count(d) > 0 then true else false end from Delivery d join d.stops s "
             + "where d.id = :deliveryId and s.pharmacy.id = :pharmacyId")
     boolean existsStopForPharmacy(@Param("deliveryId") UUID deliveryId, @Param("pharmacyId") UUID pharmacyId);
+
+    /** Requests already committed to a live delivery at this depot — never re-plan them. */
+    @Query("""
+            select distinct i.requestId from Delivery d join d.items i
+            where d.depot.id = :depotId
+              and d.status <> com.chanebplus.stockcare.modules.delivery.domain.DeliveryStatus.CANCELLED
+            """)
+    List<UUID> findPlannedRequestIds(@Param("depotId") UUID depotId);
 }

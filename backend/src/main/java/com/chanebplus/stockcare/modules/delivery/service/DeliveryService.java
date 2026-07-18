@@ -83,71 +83,208 @@ public class DeliveryService {
 
     // -------- Plan creation --------
 
+    /**
+     * Single-vehicle planning: kept for the existing depot screen and API contract. Runs the same
+     * optimizer with a one-vehicle fleet and returns the resulting delivery.
+     */
     @Transactional
     public DeliveryDto createPlan(DeliveryPlanRequest req) {
-        UUID depotId = currentDepotId();
-        Vehicle vehicle = vehicleRepository.findById(req.vehicleId())
-                .orElseThrow(() -> NotFoundException.of("Vehicle", req.vehicleId()));
-        if (!vehicle.getDepot().getId().equals(depotId)) {
-            throw new ForbiddenAccessException("Vehicle belongs to another depot");
+        FleetPlanResult result = plan(new FleetPlanRequest(req.requestIds(),
+                List.of(req.vehicleId()),
+                req.driverId() == null ? List.<UUID>of() : List.of(req.driverId()),
+                null));
+        if (result.deliveries().isEmpty()) {
+            throw new BusinessRuleException("No route could be built: " + result.note());
         }
-        Driver driver = req.driverId() == null ? null : driverRepository.findById(req.driverId())
-                .orElseThrow(() -> NotFoundException.of("Driver", req.driverId()));
+        return result.deliveries().get(0);
+    }
 
-        List<PharmacyRequest> requests = new ArrayList<>();
-        for (UUID id : req.requestIds()) {
-            PharmacyRequest r = requestRepository.findWithItemsById(id)
-                    .orElseThrow(() -> NotFoundException.of("PharmacyRequest", id));
-            if (!r.getDepot().getId().equals(depotId)) {
-                throw new ForbiddenAccessException("Request " + id + " belongs to another depot");
-            }
-            if (r.getStatus() != RequestStatus.PLANNED) {
-                throw new BusinessRuleException("Request " + id + " must be approved (PLANNED) before delivery planning");
-            }
-            requests.add(r);
-        }
+    /**
+     * Fleet-wide planning: hands the whole wave of approved requests to the optimizer, which decides
+     * the vehicle assignment and the visiting order in a single solve, then materialises one
+     * delivery per returned route.
+     *
+     * <p>Priority coefficients come from the priority model and are passed straight through as
+     * objective weights — the optimizer, not this service, decides what gets served first.
+     */
+    @Transactional
+    public FleetPlanResult plan(FleetPlanRequest req) {
+        return plan(currentDepotId(), req);
+    }
 
+    /** Depot-explicit variant, used by the automated workflow where no security context exists. */
+    @Transactional
+    public FleetPlanResult plan(UUID depotId, FleetPlanRequest req) {
+        List<Vehicle> vehicles = resolveVehicles(depotId, req.vehicleIdsOrEmpty());
+        List<Driver> drivers = resolveDrivers(req.driverIdsOrEmpty());
+        List<PharmacyRequest> requests = loadPlannableRequests(depotId, req.requestIds());
         Depot depot = requests.get(0).getDepot();
 
-        // Group by pharmacy → one stop each
+        // One stop per pharmacy: several requests to the same pharmacy are a single visit.
         Map<UUID, List<PharmacyRequest>> byPharmacy = new LinkedHashMap<>();
         for (PharmacyRequest r : requests) {
             byPharmacy.computeIfAbsent(r.getPharmacy().getId(), k -> new ArrayList<>()).add(r);
         }
         List<RouteOptimizationInput.Stop> stops = new ArrayList<>();
         Map<UUID, com.chanebplus.stockcare.modules.pharmacy.domain.Pharmacy> pharmacyById = new HashMap<>();
+        Map<UUID, List<PharmacyRequest>> requestsByStop = new HashMap<>();
+
         for (var entry : byPharmacy.entrySet()) {
-            var pharmacy = entry.getValue().get(0).getPharmacy();
+            List<PharmacyRequest> group = entry.getValue();
+            var pharmacy = group.get(0).getPharmacy();
             pharmacyById.put(pharmacy.getId(), pharmacy);
-            int units = 0; boolean cold = false; double priority = 0;
-            for (PharmacyRequest r : entry.getValue()) {
+
+            int units = 0;
+            int lines = 0;
+            boolean cold = false;
+            double priority = 0;
+            for (PharmacyRequest r : group) {
                 for (PharmacyRequestItem it : r.getItems()) {
                     units += it.getRequestedQuantity();
                     cold = cold || it.getMedication().isColdChain();
+                    lines++;
                 }
                 var pr = priorityRepository.findByRequestId(r.getId()).orElse(null);
                 if (pr != null) priority = Math.max(priority, pr.getCoefficient());
             }
-            stops.add(new RouteOptimizationInput.Stop(entry.getValue().get(0).getId(), pharmacy.getId(),
-                    coord(pharmacy.getLatitude()), coord(pharmacy.getLongitude()), priority, units, cold, null, null));
+            UUID stopKey = group.get(0).getId();
+            requestsByStop.put(stopKey, group);
+            stops.add(new RouteOptimizationInput.Stop(stopKey, pharmacy.getId(),
+                    coord(pharmacy.getLatitude()), coord(pharmacy.getLongitude()),
+                    priority, units, cold, null, null, lines));
         }
 
-        var input = new RouteOptimizationInput(depot.getId(), coord(depot.getLatitude()), coord(depot.getLongitude()),
-                stops, List.of(new RouteOptimizationInput.Vehicle(vehicle.getId(), vehicle.getCapacityUnits(),
-                vehicle.isRefrigerated())), null);
+        List<RouteOptimizationInput.Vehicle> fleet = vehicles.stream()
+                .map(v -> new RouteOptimizationInput.Vehicle(v.getId(), v.getCapacityUnits(), v.isRefrigerated()))
+                .toList();
+        var input = new RouteOptimizationInput(depot.getId(), coord(depot.getLatitude()),
+                coord(depot.getLongitude()), stops, fleet, req.maxRouteMinutes());
 
-        long start = System.currentTimeMillis();
-        RouteOptimizationResult result = optimizer.optimize(input);
-        recorder.record(ModelType.ROUTE_OPTIMIZATION, optimizer.mode(), models.getRouteOptimization().getVersion(),
-                ModelExecutionStatus.SUCCESS, System.currentTimeMillis() - start,
-                "stops=" + stops.size() + ", vehicle=" + vehicle.getCode(),
-                "status=" + result.status() + ", routes=" + result.routes().size(), null);
+        RouteOptimizationResult result = runOptimizer(input, stops.size(), vehicles);
 
         if (result.routes().isEmpty()) {
-            throw new BusinessRuleException("No route could be built (vehicle capacity or cold-chain constraints)");
+            throw new BusinessRuleException("No route could be built. " + note(result));
         }
-        RouteOptimizationResult.VehicleRoute route = result.routes().get(0);
 
+        Map<UUID, Vehicle> vehicleById = new HashMap<>();
+        vehicles.forEach(v -> vehicleById.put(v.getId(), v));
+
+        List<DeliveryDto> created = new ArrayList<>();
+        Set<UUID> notifiedPharmacies = new LinkedHashSet<>();
+        int driverIndex = 0;
+
+        for (RouteOptimizationResult.VehicleRoute route : result.routes()) {
+            if (route.stops().isEmpty()) {
+                continue;
+            }
+            Vehicle vehicle = vehicleById.get(route.vehicleId());
+            if (vehicle == null) {
+                throw new BusinessRuleException("Optimizer returned an unknown vehicle " + route.vehicleId());
+            }
+            Driver driver = driverIndex < drivers.size() ? drivers.get(driverIndex++) : null;
+
+            Delivery saved = materialise(depot, vehicle, driver, route, pharmacyById, requestsByStop, result);
+            created.add(DeliveryMapper.toDto(saved));
+
+            notifications.notifyDepot(depotId, NotificationType.ROUTE_PLANNED, "Route planned",
+                    "Delivery " + saved.getReference() + " planned with " + route.stops().size()
+                            + " stop(s) on vehicle " + vehicle.getCode() + ".", saved.getId(), "DELIVERY");
+            for (RouteOptimizationResult.OrderedStop os : route.stops()) {
+                if (notifiedPharmacies.add(os.pharmacyId())) {
+                    notifications.notifyPharmacy(os.pharmacyId(), NotificationType.ROUTE_PLANNED,
+                            "Delivery planned",
+                            "A delivery to your pharmacy has been planned (" + saved.getReference() + ").",
+                            saved.getId(), "DELIVERY");
+                }
+            }
+        }
+
+        // A stop the optimizer could not place keeps every request behind it unplanned.
+        List<UUID> unfulfilled = new ArrayList<>();
+        for (UUID stopKey : result.unfulfilledRequestIds()) {
+            requestsByStop.getOrDefault(stopKey, List.<PharmacyRequest>of()).forEach(r -> unfulfilled.add(r.getId()));
+        }
+
+        return new FleetPlanResult(result.status(), result.optimized(), result.objectiveValue(),
+                note(result), created, unfulfilled);
+    }
+
+    // -------- Planning helpers --------
+
+    private List<Vehicle> resolveVehicles(UUID depotId, List<UUID> requested) {
+        List<Vehicle> vehicles = new ArrayList<>();
+        if (requested.isEmpty()) {
+            vehicles.addAll(vehicleRepository.findByDepotIdAndActiveTrue(depotId));
+            if (vehicles.isEmpty()) {
+                throw new BusinessRuleException("No active vehicle available at this depot.");
+            }
+            return vehicles;
+        }
+        for (UUID id : requested) {
+            Vehicle v = vehicleRepository.findById(id)
+                    .orElseThrow(() -> NotFoundException.of("Vehicle", id));
+            if (!v.getDepot().getId().equals(depotId)) {
+                throw new ForbiddenAccessException("Vehicle belongs to another depot");
+            }
+            vehicles.add(v);
+        }
+        return vehicles;
+    }
+
+    private List<Driver> resolveDrivers(List<UUID> requested) {
+        List<Driver> drivers = new ArrayList<>();
+        for (UUID id : requested) {
+            drivers.add(driverRepository.findById(id).orElseThrow(() -> NotFoundException.of("Driver", id)));
+        }
+        return drivers;
+    }
+
+    private List<PharmacyRequest> loadPlannableRequests(UUID depotId, List<UUID> ids) {
+        List<PharmacyRequest> requests = new ArrayList<>();
+        for (UUID id : ids) {
+            PharmacyRequest r = requestRepository.findWithItemsById(id)
+                    .orElseThrow(() -> NotFoundException.of("PharmacyRequest", id));
+            if (!r.getDepot().getId().equals(depotId)) {
+                throw new ForbiddenAccessException("Request " + id + " belongs to another depot");
+            }
+            if (r.getStatus() != RequestStatus.PLANNED) {
+                throw new BusinessRuleException(
+                        "Request " + id + " must be approved (PLANNED) before delivery planning");
+            }
+            requests.add(r);
+        }
+        if (requests.isEmpty()) {
+            throw new BusinessRuleException("No request to plan.");
+        }
+        return requests;
+    }
+
+    private RouteOptimizationResult runOptimizer(RouteOptimizationInput input, int stopCount,
+                                                 List<Vehicle> vehicles) {
+        String inputSummary = "stops=" + stopCount + ", vehicles=" + vehicles.size();
+        long start = System.currentTimeMillis();
+        try {
+            RouteOptimizationResult result = optimizer.optimize(input);
+            recorder.record(ModelType.ROUTE_OPTIMIZATION, optimizer.mode(),
+                    models.getRouteOptimization().getVersion(), ModelExecutionStatus.SUCCESS,
+                    System.currentTimeMillis() - start, inputSummary,
+                    "status=" + result.status() + ", optimized=" + result.optimized()
+                            + ", routes=" + result.routes().size()
+                            + ", unfulfilled=" + result.unfulfilledRequestIds().size(), null);
+            return result;
+        } catch (RuntimeException ex) {
+            recorder.record(ModelType.ROUTE_OPTIMIZATION, optimizer.mode(),
+                    models.getRouteOptimization().getVersion(), ModelExecutionStatus.ERROR,
+                    System.currentTimeMillis() - start, inputSummary, null, ex.getMessage());
+            throw ex;
+        }
+    }
+
+    private Delivery materialise(Depot depot, Vehicle vehicle, Driver driver,
+                                 RouteOptimizationResult.VehicleRoute route,
+                                 Map<UUID, com.chanebplus.stockcare.modules.pharmacy.domain.Pharmacy> pharmacyById,
+                                 Map<UUID, List<PharmacyRequest>> requestsByStop,
+                                 RouteOptimizationResult result) {
         Delivery delivery = new Delivery();
         delivery.setDepot(depot);
         delivery.setVehicle(vehicle);
@@ -176,28 +313,30 @@ public class DeliveryService {
             stop.setStatus(RouteStopStatus.PENDING);
             stop.setEstimatedArrivalMinute(os.estimatedArrivalMinute());
             delivery.addStop(stop);
-        }
-        for (PharmacyRequest r : requests) {
-            for (PharmacyRequestItem it : r.getItems()) {
-                DeliveryItem di = new DeliveryItem();
-                di.setPharmacy(r.getPharmacy());
-                di.setRequestId(r.getId());
-                di.setMedication(it.getMedication());
-                di.setQuantity(it.getRequestedQuantity());
-                delivery.addItem(di);
+
+            // Only the requests actually served by this route travel on this vehicle.
+            for (PharmacyRequest r : requestsByStop.getOrDefault(os.requestId(), List.<PharmacyRequest>of())) {
+                for (PharmacyRequestItem it : r.getItems()) {
+                    DeliveryItem di = new DeliveryItem();
+                    di.setPharmacy(r.getPharmacy());
+                    di.setRequestId(r.getId());
+                    di.setMedication(it.getMedication());
+                    di.setQuantity(it.getRequestedQuantity());
+                    delivery.addItem(di);
+                }
             }
         }
+
         Delivery saved = deliveryRepository.save(delivery);
-        event(saved, DeliveryEventType.PLANNED, "Delivery planned (mock, non-optimized route)");
+        event(saved, DeliveryEventType.PLANNED, result.optimized()
+                ? "Delivery planned from MILP optimum (" + optimizer.mode() + ", "
+                        + models.getRouteOptimization().getVersion() + ")"
+                : "Delivery planned (mock, non-optimized route)");
+        return saved;
+    }
 
-        notifications.notifyDepot(depotId, NotificationType.ROUTE_PLANNED, "Route planned",
-                "Delivery " + saved.getReference() + " planned with " + route.stops().size() + " stop(s).",
-                saved.getId(), "DELIVERY");
-        byPharmacy.keySet().forEach(pid -> notifications.notifyPharmacy(pid, NotificationType.ROUTE_PLANNED,
-                "Delivery planned", "A delivery to your pharmacy has been planned (" + saved.getReference() + ").",
-                saved.getId(), "DELIVERY"));
-
-        return DeliveryMapper.toDto(saved);
+    private String note(RouteOptimizationResult result) {
+        return result.note() == null ? "status=" + result.status() : result.note();
     }
 
     // -------- Lifecycle controls --------

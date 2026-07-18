@@ -248,7 +248,11 @@ public class RequestService {
             throw new BusinessRuleException("Request must be PRIORITIZED before planning approval");
         }
         request.setStatus(RequestStatus.PLANNED);
-        return assembler.toDto(requestRepository.save(request));
+        RequestDto dto = assembler.toDto(requestRepository.save(request));
+        // Hands over to the automated route step (no-op unless stockcare.workflow.auto-route=true).
+        events.publishEvent(new com.chanebplus.stockcare.common.events.WorkflowEvents
+                .RequestApprovedForPlanning(requestId, request.getDepot().getId()));
+        return dto;
     }
 
     // ---------------- Helpers ----------------

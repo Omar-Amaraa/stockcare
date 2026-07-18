@@ -76,7 +76,29 @@ curl -s "http://localhost:8080/api/depot/requests?status=SUBMITTED" -H "Authoriz
 curl -s -X POST "http://localhost:8080/api/depot/requests/$REQ/prioritize" -H "Authorization: Bearer $DTOKEN"
 
 # approve for route planning
+# With stockcare.workflow.auto-route=true this already triggers the MILP fleet solve in the
+# background; section 8 bis shows how to run it explicitly.
 curl -s -X POST "http://localhost:8080/api/depot/requests/$REQ/approve" -H "Authorization: Bearer $DTOKEN"
+```
+
+## 8 bis. Depot: plan routes with the MILP optimizer
+
+```bash
+# Whole fleet: the optimizer assigns pharmacies to vehicles and orders each route.
+# Omit vehicleIds to use every active vehicle of the depot.
+curl -s -X POST http://localhost:8080/api/deliveries/plan/fleet \
+  -H "Authorization: Bearer $DTOKEN" -H 'Content-Type: application/json' \
+  -d "{\"requestIds\":[\"$REQ\"]}" | jq '{status, optimized, objectiveValue, note,
+        deliveries: [.deliveries[] | {reference, totalDistanceKm, stops: (.stops | length)}],
+        unfulfilled: (.unfulfilledRequestIds | length)}'
+
+# Single vehicle (unchanged API)
+curl -s -X POST http://localhost:8080/api/deliveries/plan \
+  -H "Authorization: Bearer $DTOKEN" -H 'Content-Type: application/json' \
+  -d "{\"requestIds\":[\"$REQ\"],\"vehicleId\":\"$VEHICLE\",\"driverId\":\"$DRIVER\"}"
+
+# What the solver was tuned with, when a route looks surprising
+curl -s http://localhost:8002/info | jq
 ```
 
 ## 9. Simulated time

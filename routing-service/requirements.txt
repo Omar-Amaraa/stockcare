@@ -1,0 +1,12 @@
+# StockCare Routing Service — MILP CARE serving layer
+
+pulp>=2.7,<4        # MILP modelling + embedded CBC solver (PuLP 4 removes PULP_CBC_CMD)
+networkx>=3.0       # imported by vrp_milp_pharma
+plotly>=5.18        # imported by vrp_milp_pharma (map rendering)
+fastapi>=0.111
+uvicorn[standard]>=0.30
+pydantic>=2.6
+
+# --- Development ---
+pytest>=7.4
+httpx>=0.27         # FastAPI TestClient

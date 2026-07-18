@@ -3,6 +3,7 @@ package com.chanebplus.stockcare.modules.request.workflow;
 import com.chanebplus.stockcare.common.events.WorkflowEvents;
 import com.chanebplus.stockcare.modules.pharmacy.repo.PharmacyRepository;
 import com.chanebplus.stockcare.modules.prediction.service.PredictionService;
+import com.chanebplus.stockcare.modules.route.workflow.RouteWorkflowService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -22,12 +23,14 @@ public class WorkflowListeners {
 
     private final PredictionService predictionService;
     private final RequestWorkflowService requestWorkflow;
+    private final RouteWorkflowService routeWorkflow;
     private final PharmacyRepository pharmacyRepository;
 
     public WorkflowListeners(PredictionService predictionService, RequestWorkflowService requestWorkflow,
-                             PharmacyRepository pharmacyRepository) {
+                             RouteWorkflowService routeWorkflow, PharmacyRepository pharmacyRepository) {
         this.predictionService = predictionService;
         this.requestWorkflow = requestWorkflow;
+        this.routeWorkflow = routeWorkflow;
         this.pharmacyRepository = pharmacyRepository;
     }
 
@@ -63,6 +66,13 @@ public class WorkflowListeners {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onShortagePredicted(WorkflowEvents.ShortagePredicted e) {
         safe(() -> requestWorkflow.autoDraftForShortages(e.pharmacyId()), "auto draft");
+    }
+
+    /** Final automated step: approved requests are routed by the MILP optimizer. */
+    @Async("workflowExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onRequestApprovedForPlanning(WorkflowEvents.RequestApprovedForPlanning e) {
+        safe(() -> routeWorkflow.autoPlan(e.depotId()), "auto route");
     }
 
     private void safe(Runnable r, String what) {

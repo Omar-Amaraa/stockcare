@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Sorties horodatees : regenerees a chaque execution
+outputs/*.json
+outputs/*.html
+outputs/*.log
+!outputs/.gitkeep
+
+# Fichiers temporaires du solveur CBC
+*.lp
+*.mps
+*.sol

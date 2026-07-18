@@ -1,0 +1,71 @@
+{
+  "_comment": "Parametres d'exploitation du solveur VRP-MILP. Toutes les valeurs metier sont ici : le code ne contient aucune constante en dur.",
+  "_version": "1.0",
+
+  "chemins": {
+    "catalogue_csv": "data/pharmacy_delivery_priorities.csv",
+    "reseau_json": "data/reseau_sousse.json",
+    "demandes_csv": "data/demandes.csv",
+    "regles_froid": "config/cold_chain_rules.json",
+    "dossier_sortie": "outputs"
+  },
+
+  "priorite": {
+    "_comment": "Politique d'agregation : une pharmacie envoie plusieurs lignes de commande (une par medicament manquant). Le depot doit ramener cela a un score unique par pharmacie.",
+    "agregation": "max",
+    "_agregations_possibles": ["max", "moyenne", "moyenne_ponderee"],
+    "rescale": false,
+    "_rescale_comment": "false = on utilise les valeurs brutes du CSV (0.058 a 0.662). Le poids w_p de l'objectif absorbe l'echelle.",
+    "borne_min": 0.05,
+    "borne_max": 1.0
+  },
+
+  "sla": {
+    "_comment": "Fenetre SLA T[i] en minutes, deduite de la priorite agregee. Interpolation lineaire entre les deux ancrages : plus la priorite est haute, plus la fenetre est serree.",
+    "priorite_haute": 0.66,
+    "fenetre_haute_min": 45.0,
+    "priorite_basse": 0.06,
+    "fenetre_basse_min": 210.0,
+    "bonus_chaine_froid_min": -15.0,
+    "plancher_min": 30.0
+  },
+
+  "dechargement": {
+    "_comment": "Temps de service sigma[i] en minutes : forfait + increment par ligne de commande.",
+    "forfait_min": 3.0,
+    "par_ligne_min": 0.8,
+    "plafond_min": 25.0
+  },
+
+  "flotte": {
+    "_comment": "Q = capacite (unites/bacs), R = 1 si vehicule refrigere, c_f = cout TND/km.",
+    "Q": [90.0, 70.0, 110.0],
+    "R": [1, 1, 0],
+    "c_f": [1.85, 1.6, 1.1]
+  },
+
+  "geometrie": {
+    "_comment": "Calibration TomTom sur 13 trajets reels a Sousse, 18/07/2026.",
+    "facteur_sinuosite": 1.6,
+    "vitesse_effective_kmh": 20.9
+  },
+
+  "solveur": {
+    "H_max": 480.0,
+    "w_p": 5.0,
+    "gamma": 0.1,
+    "w_v": 50.0,
+    "time_limit": 240,
+    "verbose": false
+  },
+
+  "simulation": {
+    "_comment": "Utilise uniquement par generer_demandes.py quand aucun demandes.csv reel n'est fourni.",
+    "seed": 2026,
+    "lignes_min_par_pharmacie": 2,
+    "lignes_max_par_pharmacie": 9,
+    "quantite_min_par_ligne": 1.0,
+    "quantite_max_par_ligne": 6.0,
+    "_note_capacite": "Charge attendue ~ 10 pharmacies x 5.5 lignes x 3.5 unites = ~190 unites, pour 270 de capacite flotte. Augmenter quantite_max_par_ligne sature la flotte et rend le probleme infaisable (run.py le signale avant resolution)."
+  }
+}

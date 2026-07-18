@@ -24,7 +24,18 @@ public record RouteOptimizationInput(
             int totalUnits,
             boolean coldChain,
             Integer timeWindowStartMinute,
-            Integer timeWindowEndMinute) {}
+            Integer timeWindowEndMinute,
+            /** Number of order lines at this stop; drives the unloading (service) time. */
+            Integer lineCount) {
+
+        /** Backwards-compatible factory for callers that do not track order lines. */
+        public Stop(UUID requestId, UUID pharmacyId, double latitude, double longitude,
+                    double priorityCoefficient, int totalUnits, boolean coldChain,
+                    Integer timeWindowStartMinute, Integer timeWindowEndMinute) {
+            this(requestId, pharmacyId, latitude, longitude, priorityCoefficient, totalUnits,
+                    coldChain, timeWindowStartMinute, timeWindowEndMinute, null);
+        }
+    }
 
     public record Vehicle(
             UUID vehicleId,

@@ -3,6 +3,8 @@ package com.chanebplus.stockcare.modules.delivery.web;
 import com.chanebplus.stockcare.modules.delivery.dto.DeliveryDto;
 import com.chanebplus.stockcare.modules.delivery.dto.DeliveryEventDto;
 import com.chanebplus.stockcare.modules.delivery.dto.DeliveryPlanRequest;
+import com.chanebplus.stockcare.modules.delivery.dto.FleetPlanRequest;
+import com.chanebplus.stockcare.modules.delivery.dto.FleetPlanResult;
 import com.chanebplus.stockcare.modules.delivery.dto.TrackingPositionDto;
 import com.chanebplus.stockcare.modules.delivery.service.DeliveryService;
 import com.chanebplus.stockcare.modules.pharmacy.service.PharmacyAccessService;
@@ -27,11 +29,21 @@ public class DeliveryController {
         this.accessService = accessService;
     }
 
-    @Operation(summary = "Depot: create a (mock) delivery plan from approved requests")
+    @Operation(summary = "Depot: plan one vehicle's delivery from approved requests")
     @PreAuthorize("hasAnyRole('DEPOT','ADMIN')")
     @PostMapping("/plan")
     public DeliveryDto plan(@Valid @RequestBody DeliveryPlanRequest req) {
         return service.createPlan(req);
+    }
+
+    @Operation(summary = "Depot: plan a wave of approved requests across the whole fleet (MILP)",
+            description = "Runs a single optimization over all selected requests and vehicles. The "
+                    + "optimizer assigns pharmacies to vehicles and orders each route; one delivery "
+                    + "is created per returned route. Omit vehicleIds to use every active vehicle.")
+    @PreAuthorize("hasAnyRole('DEPOT','ADMIN')")
+    @PostMapping("/plan/fleet")
+    public FleetPlanResult planFleet(@Valid @RequestBody FleetPlanRequest req) {
+        return service.plan(req);
     }
 
     @Operation(summary = "Depot: list this depot's deliveries")

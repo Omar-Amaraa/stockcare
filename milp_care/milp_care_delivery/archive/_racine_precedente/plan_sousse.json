@@ -1,0 +1,192 @@
+{
+ "noeuds": [
+  {
+   "id": 0,
+   "nom": "Depot — 45 Rue Safia Farhat, Sousse 4054 (Sousse Jawhara)",
+   "lib": "DEPOT",
+   "lon": 10.6054722,
+   "lat": 35.8383611,
+   "q": 0.0,
+   "cc": 0,
+   "pr": 0.0,
+   "sigma": 0.0,
+   "T": 0.0,
+   "s_plan": 0.0
+  },
+  {
+   "id": 1,
+   "nom": "Pharmacie Hafedh Frigui",
+   "lib": "Insuline / vaccins",
+   "lon": 10.6335,
+   "lat": 35.8258,
+   "q": 11.8,
+   "cc": 1,
+   "pr": 1.0,
+   "sigma": 9.2,
+   "T": 87.9,
+   "s_plan": 35.1
+  },
+  {
+   "id": 2,
+   "nom": "Pharmacie Chehata Raoudha",
+   "lib": "Serums thermosensibles",
+   "lon": 10.6368,
+   "lat": 35.8293,
+   "q": 13.9,
+   "cc": 1,
+   "pr": 0.87,
+   "sigma": 7.4,
+   "T": 70.8,
+   "s_plan": 46.5
+  },
+  {
+   "id": 3,
+   "nom": "Pharmacie Zaoui",
+   "lib": "Parapharmacie / confort",
+   "lon": 10.633784,
+   "lat": 35.830978,
+   "q": 29.4,
+   "cc": 0,
+   "pr": 0.15,
+   "sigma": 10.2,
+   "T": 142.9,
+   "s_plan": 55.4
+  },
+  {
+   "id": 4,
+   "nom": "Pharmacie Nouira Souha",
+   "lib": "Insuline / vaccins",
+   "lon": 10.629957,
+   "lat": 35.829877,
+   "q": 15.4,
+   "cc": 1,
+   "pr": 0.89,
+   "sigma": 10.5,
+   "T": 65.2,
+   "s_plan": 22.0
+  },
+  {
+   "id": 5,
+   "nom": "Pharmacie Chemli Foued",
+   "lib": "Parapharmacie / confort",
+   "lon": 10.6369,
+   "lat": 35.8202,
+   "q": 22.3,
+   "cc": 0,
+   "pr": 0.12,
+   "sigma": 7.2,
+   "T": 131.7,
+   "s_plan": 40.3
+  },
+  {
+   "id": 6,
+   "nom": "Pharmacie de Nuit NEJI K.",
+   "lib": "Antibiotiques injectables",
+   "lon": 10.632363,
+   "lat": 35.831623,
+   "q": 26.1,
+   "cc": 0,
+   "pr": 0.83,
+   "sigma": 8.1,
+   "T": 48.4,
+   "s_plan": 11.7
+  },
+  {
+   "id": 7,
+   "nom": "Pharmacie Insaf Skhiri Ajina",
+   "lib": "Antibiotiques injectables",
+   "lon": 10.638412,
+   "lat": 35.832505,
+   "q": 11.8,
+   "cc": 0,
+   "pr": 0.76,
+   "sigma": 6.3,
+   "T": 51.3,
+   "s_plan": 22.3
+  },
+  {
+   "id": 8,
+   "nom": "Pharmacie Health",
+   "lib": "Parapharmacie / confort",
+   "lon": 10.6416,
+   "lat": 35.8314,
+   "q": 27.6,
+   "cc": 0,
+   "pr": 0.16,
+   "sigma": 4.2,
+   "T": 175.3,
+   "s_plan": 30.0
+  },
+  {
+   "id": 9,
+   "nom": "Pharmacie Mon Armoire",
+   "lib": "Antibiotiques injectables",
+   "lon": 10.6311,
+   "lat": 35.8177,
+   "q": 19.2,
+   "cc": 0,
+   "pr": 0.68,
+   "sigma": 11.1,
+   "T": 70.0,
+   "s_plan": 50.2
+  },
+  {
+   "id": 10,
+   "nom": "Pharmacie Nenupharma",
+   "lib": "Insuline / vaccins",
+   "lon": 10.6257,
+   "lat": 35.8303,
+   "q": 13.1,
+   "cc": 1,
+   "pr": 1.0,
+   "sigma": 10.9,
+   "T": 84.4,
+   "s_plan": 9.3
+  }
+ ],
+ "tournees": [
+  {
+   "k": 0,
+   "refrigere": 1,
+   "cap": 90.0,
+   "cout_km": 1.85,
+   "ordre": [
+    0,
+    10,
+    4,
+    1,
+    2,
+    3,
+    0
+   ],
+   "km": 10.36
+  },
+  {
+   "k": 2,
+   "refrigere": 0,
+   "cap": 110.0,
+   "cout_km": 1.1,
+   "ordre": [
+    0,
+    6,
+    7,
+    8,
+    5,
+    9,
+    0
+   ],
+   "km": 13.71
+  }
+ ],
+ "objectif": 152.56,
+ "statut": "Optimal",
+ "depot": {
+  "nom": "Depot — 45 Rue Safia Farhat, Sousse 4054 (Sousse Jawhara)",
+  "lon": 10.6054722,
+  "lat": 35.8383611
+ },
+ "calib": {
+  "sinuosite": 1.6,
+  "vitesse": 20.9
+ }
+}

@@ -34,6 +34,8 @@ public interface PharmacyRequestRepository extends JpaRepository<PharmacyRequest
 
     long countByDepotIdAndStatus(UUID depotId, RequestStatus status);
 
+    java.util.List<PharmacyRequest> findByDepotIdAndStatusOrderByCreatedAtAsc(UUID depotId, RequestStatus status);
+
     @Query("""
             select case when count(r) > 0 then true else false end
             from PharmacyRequest r join r.items it

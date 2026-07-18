@@ -1,0 +1,10 @@
+# MILP CARE — dependances
+# Installation :  py -m pip install -r requirements.txt
+
+pulp>=2.7          # modelisation et resolution du MILP (solveur CBC embarque)
+plotly>=5.18       # carte interactive des tournees
+networkx>=3.0      # structure de graphe pour le rendu
+numpy>=1.24        # utilise par la suite de tests comparative
+
+# --- Developpement (optionnel) ---
+pytest>=7.4

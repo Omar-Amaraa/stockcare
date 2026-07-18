@@ -9,8 +9,8 @@ frontend. Prediction, priority-scoring and route-optimization are implemented as
 mock / rule-based services behind interfaces**, ready to be replaced by the real LightGBM demand
 model, priority model and MILP optimizer without rewriting the business workflow.
 
-> **Build status — full MVP.** Backend (auth, inventory, simulated time, mock prediction, requests,
-> depot management, priority, mock MILP routing, deliveries + simulated live tracking over SSE,
+> **Build status — full MVP.** Backend (auth, inventory, simulated time, prediction, requests,
+> depot management, priority, MILP fleet routing, deliveries + simulated live tracking over SSE,
 > notifications, audit), an Angular + Tailwind CSS frontend (branded pharmacy + depot dashboards,
 > Leaflet tracking map), a Python/LightGBM prediction service, PostgreSQL + Flyway, Docker Compose,
 > seed data, OpenAPI docs and unit tests are all included.
@@ -73,7 +73,10 @@ Configured in `.env` (see `.env.example`):
 | `STOCKCARE_CORS_ALLOWED_ORIGINS` | `http://localhost:4200` | Allowed frontend origins |
 | `STOCKCARE_MODEL_PREDICTION_MODE` | `mock` | `mock` or `external` (prediction model) |
 | `STOCKCARE_MODEL_PRIORITY_MODE` | `mock` | `mock` or `external` (priority model) |
-| `STOCKCARE_MODEL_ROUTE_MODE` | `mock` | `mock` or `external` (MILP optimizer) |
+| `STOCKCARE_MODEL_ROUTE_MODE` | `mock` (`external` in Compose) | `mock` or `external` (MILP optimizer) |
+| `STOCKCARE_ROUTING_URL` | – | Routing service base URL (`http://routing-service:8000`) |
+| `STOCKCARE_ROUTING_TIMEOUT_MS` | `90000` | Must stay above the solver time limit |
+| `STOCKCARE_WORKFLOW_AUTO_ROUTE` | `false` (`true` in Compose) | Approval triggers a fleet-wide MILP solve |
 
 ## 4. Docker commands
 
@@ -195,11 +198,45 @@ Offline pipeline (train / evaluate / backtest) and its own unit tests live in th
 > features are approximated from each item's average daily consumption until real POS history is
 > streamed; region, category, cold-chain and calendar/epidemiological signals are real.
 
+## 9 bis. Real route optimizer — MILP CARE (Layer 3)
+
+The optimizer in [`routing-service/`](routing-service/) is a **VRP-MILP** (PuLP / CBC) that computes
+the cost-optimal delivery trajectory for the whole fleet in a single solve. It wraps the model in
+[`milp_care/`](milp_care/) unmodified and is called through the `RouteOptimizationService` boundary
+when `stockcare.models.route-optimization.mode=external` (the Docker default).
+
+It minimises transport cost + **priority-weighted SLA lateness** + arrival earliness + vehicle
+activation cost, under capacity, cold-chain and time-window constraints. Priority coefficients are
+**not recomputed here** — they arrive from the priority model (Layer 2) and enter the objective
+directly, and each stop's SLA deadline is interpolated from them (higher priority, tighter window).
+
+```bash
+curl http://localhost:8002/info          # SLA, geometry and solver parameters in force
+# The backend calls POST http://routing-service:8000/optimize internally.
+```
+
+Two ways in:
+
+- `POST /api/deliveries/plan` — one vehicle, unchanged API.
+- `POST /api/deliveries/plan/fleet` — the whole approved backlog across the fleet; the optimizer
+  assigns pharmacies to vehicles and orders each route, and one delivery is created per route.
+
+Unlike prediction, a routing failure is **not** silently degraded: a delivery planned from a broken
+optimizer would be operationally wrong, so transport errors and infeasible instances surface with an
+explicit reason (missing capacity, missing refrigerated capacity, an order larger than any vehicle).
+Set the mode to `mock` for the built-in greedy router with no Python dependency.
+
+Tests: `cd routing-service && pip install -r requirements.txt && pytest -q`.
+
 ## 10. Automated, event-driven workflows
 
-The platform is proactive — users provide data and the system runs prediction, prioritization and
-status updates automatically. There are **no "run prediction" or "calculate priority" buttons** in
-the normal flow.
+The platform is proactive — users provide data and the system runs prediction, prioritization,
+routing and status updates automatically. There are **no "run prediction", "calculate priority" or
+"plan route" buttons** in the normal flow. The full chain is:
+
+```
+inventory change -> prediction -> draft request -> submit -> priority -> approval -> MILP fleet plan -> delivery
+```
 
 - **Auto-prediction.** Changing inventory (add / edit / adjust / delete) or the simulated clock
   publishes a domain event; an async listener runs the model in the background. A per-pharmacy
@@ -213,6 +250,13 @@ the normal flow.
 - **Auto-priority.** On submit, a request advances automatically
   `SUBMITTED → RECEIVED → PRIORITY_PENDING → PRIORITIZED` and the coefficient is computed in the
   background — the depot never clicks "calculate".
+- **Auto-route.** Approving requests for planning publishes an event; the depot's whole approved,
+  unplanned backlog is then handed to the MILP optimizer in **one fleet-wide solve** and the
+  resulting deliveries are created (config: `stockcare.workflow.auto-route`, threshold
+  `auto-route-min-requests`). Runs are serialised per depot and each run re-reads the backlog while
+  skipping requests already committed to a delivery, so approving a batch produces one coherent plan
+  instead of a delivery per click. If the solve fails, the requests stay approved and the depot is
+  notified — nothing is planned on a guess.
 - **Live updates.** The frontend subscribes to `GET /api/stream` (SSE) and reflects state changes
   without a page reload, with controlled polling as a fallback. The UI shows processing / completed /
   outdated / failed states; a manual **Retry** appears only on failure.
@@ -254,10 +298,13 @@ to run against H2/Testcontainers via the `test` profile (`application-test.yml`)
 
 ## 13. Known limitations & assumptions
 
-- **Prediction now runs the real LightGBM model** in `external` mode (see section 9), trained on a
-  synthetic panel. **Priority and routing remain transparent mocks** (rule-based / non-optimized),
-  behind `PriorityCalculationService` and `RouteOptimizationService`, ready to switch to `external`
-  when those services exist.
+- **Prediction runs the real LightGBM model** (section 9) and **routing runs the real VRP-MILP**
+  (section 9 bis) in `external` mode. **Priority remains a transparent rule-based mock** behind
+  `PriorityCalculationService`, ready to switch to `external`; its coefficients are already what the
+  MILP consumes, so replacing it changes no downstream code.
+- The MILP is exact, so solve time grows with stops x vehicles. Past roughly 20 stops the solver may
+  hit its time limit and return the best solution found (`status=FEASIBLE_TIME_LIMIT`) rather than a
+  proven optimum. Tune `solveur.time_limit` in `routing-service/config.json`.
 - GPS tracking is **simulated** by a scheduled server-side mover pushing positions over SSE.
 - ERP is not connected; inventory is managed manually behind the prepared `PharmacyErpAdapter`.
 - One depot in the MVP; every pharmacy is associated to it via `depot_pharmacy` (a link entity, ready
