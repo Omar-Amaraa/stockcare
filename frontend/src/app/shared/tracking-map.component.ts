@@ -9,11 +9,15 @@ import { Delivery, TrackingUpdate } from '../core/models';
   standalone: true,
   imports: [CommonModule],
   template: `<div #mapEl class="map"></div>
-    <p class="muted" style="margin-top:8px" *ngIf="delivery">
-      Vehicle: {{ delivery.vehicle?.code || '—' }} · Progress: {{ (delivery.progress*100) | number:'1.0-0' }}%
-      · ETA: {{ delivery.etaMinutes != null ? (delivery.etaMinutes | number:'1.0-0') + ' min' : '—' }}
-      <span *ngIf="delivery.simulated" class="badge b-orange" style="margin-left:8px">SIMULATED</span>
-    </p>`
+    <div *ngIf="delivery" class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-mute">
+      <span class="inline-flex items-center gap-1.5"><span class="material-icons text-[16px]">local_shipping</span>{{ delivery.vehicle?.code || '—' }}</span>
+      <span class="inline-flex min-w-[140px] flex-1 items-center gap-2">
+        <span class="progress max-w-[160px]"><span class="progress-bar bg-gradient-to-r from-brand-500 to-accent-500" [style.width.%]="delivery.progress*100"></span></span>
+        {{ (delivery.progress*100) | number:'1.0-0' }}%
+      </span>
+      <span class="inline-flex items-center gap-1.5"><span class="material-icons text-[16px]">schedule</span>ETA {{ delivery.etaMinutes != null ? (delivery.etaMinutes | number:'1.0-0') + ' min' : '—' }}</span>
+      <span *ngIf="delivery.simulated" class="badge b-orange">SIMULATED</span>
+    </div>`
 })
 export class TrackingMapComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() delivery: Delivery | null = null;

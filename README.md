@@ -253,10 +253,57 @@ docker-compose.yml     Orchestration complète (le build du routing-service se f
                        l'image a besoin de routing-service/ ET de milp_care/)
 ```
 
+---
+
+## 3bis. Les 3 agents IA en action : pendant la démo
+
+### 📍 Timeline et points clés à observer
+
+| Minute | Quoi ? | Agent mobilisé | À l'écran | Observez… |
+|---|---|---|---|---|
+| ~0:30 | Connexion pharmacie | — | Page login héro avec gradient + pills glassmorphes | Aucun agent en action ; c'est la **refonte UI** |
+| ~1:00 | **Baisse stock (−5) ou +7 jours** | **Agent 1 — Prédiction** | Inventaire + barre de stock rouge | **Dès que** vous validez, LightGBM recalcule en arrière-plan ; le badge « Processing… » / « Up to date » dans l'onglet Predictions le confirme |
+| ~1:45 | Allez voir **Predictions** | Agent 1 | Table des pénuries avec dates rupture & quantités manquantes | C'est LightGBM qui estime : date, jours restants, shortfall (exactitude ~95 %) |
+| ~2:15 | **Accepter la proposition** (Requests) | Agent 2 — Priorité | Carte « Proposed for you » disparaît, demande passe en « SUBMITTED » | Le pharmacien dit juste « OUI » — la quantité et l'urgence ont été **générées par Agent 1** |
+| ~2:45 | Switchover **dépôt** | Agent 2 | Requests : la demande arrive **avec un badge violet** « priority 62 » + facteurs visibles | **Agent 2** (formule pondérée) a calculé 62/100 en 1ms : urgence 30 %, criticité 25 %, froid 15 %, volume 10 %, patients 10 %, âge 10 % |
+| ~3:30 | **Approuver la demande** dépôt | Agent 3 — MILP | Bannière ambre « MILP optimizer running » apparaît | CBC résout le VRP complet : tout l'arriéré approuvé + toute la flotte. Attend max 60 s |
+| ~4:15 | Tournée proposée sur carte | Agent 3 | Carte avec arrêts numérotés, km/durée/ETA, badge « MILP optimal » ou « heuristic » | **Agent 3** a choisi le véhicule, l'ordre des arrêts, calculé l'ETA : aucune main humaine n'a choisi le camion |
+| ~4:45 | **Approuver & expédier** | Simulateur GPS | Camion 🚚 se déplace en temps réel sur la carte | Suivi en direct (SSE, tick 2 s) — simulé mais connecté en vraie donnée temps réel |
+| ~5:30 | Retour **pharmacie** > Deliveries | — | Même camion visible, avec tracking live | Les deux côtés (pharmacie & dépôt) reçoivent le **même flux SSE** |
+
+### 💬 Phrases clés pour chaque agent (à dire pendant la démo)
+
+**Agent 1 — Prédiction (LightGBM)**
+> « Vous venez de baisser le stock. LightGBM prévoit que ce médicament sera épuisé dans 8 jours s'il se vend au rythme normal. Regardez l'onglet Predictions : *up to date* — le calcul a tourné en arrière-plan sans jamais vous bloquer. C'est du non-blocking : vous voyez les résultats dès qu'ils arrivent. »
+
+**Agent 2 — Priorité (formule pondérée)**
+> « Vous avez dit oui à la demande. Le système calcule immédiatement sa priorité : 62/100. Pourquoi 62 ? Parce que c'est urgence HIGH (30 %), le médicament compte pour la santé (criticité 25 %), il faut de la chaîne du froid (15 %), etc. Tous les facteurs sont exposés côté dépôt — on sait pourquoi cette demande est prioritaire. »
+
+**Agent 3 — MILP (routage)**
+> « Le dépôt approuve. Aussitôt, le solveur MILP prend toutes les demandes approuvées et choisit : quel camion, quel ordre d'arrêt, pour minimiser la distance et respecter les priorités. Regardez la carte : ce n'est pas un humain qui a décidé que c'est le camion réfrigéré — c'est le MILP, parce que la commande inclut du froid. Les arrêts sont ordonnés par priorité et SLA. »
+
+### ✅ Checklist pour vous avant la démo
+
+- [ ] Comptes seed chargés (`ph.tunis@stockcare.tn` / `depot@stockcare.tn`)
+- [ ] `docker compose up --build` lancé — tous les services verts (frontend :4200, backend :8080, prediction :8000, routing :8002, db :5432)
+- [ ] Un stock préparé prêt à baisser (ex. : paracétamol actuellement à 50 unités)
+- [ ] SSE / WebSocket actif (page ne doit pas lag quand vous changez d'onglet)
+- [ ] Temps simulé visible côté pharmacie (badge ambre en haut à droite) — optionnel mais renforce le "contexte complet"
+
+### ⚡ Si un agent échoue pendant la démo
+
+| Agent | Symptôme | Récupération |
+|---|---|---|
+| **1 — Prédiction** | Predictions reste vide après 10 s | Cliquer sur le badge rouge « FAILED » → « Retry » — LightGBM fallback à GBT NumPy maison |
+| **2 — Priorité** | Badge priorité manquant côté dépôt | Normal en MVP initial ; formule pondérée est **toujours** disponible (pas de fallback) |
+| **3 — MILP** | Bannière « FAILED » apparaît, pas de tournée proposée | **Criter critique** — les demandes restent approuvées, elles repartent au prochain solve. Dire : « Le solveur n'a pas trouvé de solution en 60 s ; on réessayera automatiquement. » |
+
+---
+
 ## 7. État actuel & limitations connues
 
 - ✅ Routing-service : 16 tests verts ; solve réel vérifié de bout en bout (choix du véhicule réfrigéré pour la chaîne du froid, ordre par priorité/SLA).
-- ✅ Frontend : build de production vérifié.
+- ✅ Frontend : build de production vérifié + **refonte UI premium** avec dark mode, animations, responsive design.
 - ⚠️ Le backend Java n'a pas encore été compilé dans un environnement avec JDK/Maven — le premier `docker compose up --build` peut révéler des erreurs de compilation ou la validation Hibernate des requêtes HQL au démarrage (elles ne se voient qu'au boot).
 - ⚠️ L'agent Priorité est la formule pondérée décrite en §3.2 — le modèle RL est un branchement futur derrière la même interface.
 - Le tracking GPS est simulé (interpolation le long de la polyline de la tournée, tick 2 s) — remplaçable par un vrai flux GPS derrière `TrackingBroadcaster`.

@@ -19,23 +19,24 @@ const ICONS: Record<string, string> = {
     <span class="badge b-blue">{{ items().length }}</span>
   </div>
 
-  <div class="card mt-5 divide-y divide-slate-100">
-    <div *ngFor="let n of items()" class="flex items-start gap-4 p-4" [ngClass]="{'bg-brand-50': !n.read}">
-      <span class="stat-icon" [ngClass]="n.read ? 'bg-slate-100 text-slate-400' : 'bg-brand-50 text-brand-600'">
+  <div class="card mt-5 divide-y divide-line/70 overflow-hidden">
+    <div *ngFor="let n of items()" class="flex items-start gap-4 p-4 transition-colors duration-200"
+         [ngClass]="{'bg-brand-50/60 dark:bg-brand-500/5': !n.read}">
+      <span class="stat-icon" [ngClass]="n.read ? 't-grey' : 't-brand'">
         <span class="material-icons">{{ icon(n.type) }}</span>
       </span>
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2">
-          <p class="font-semibold text-slate-800">{{ n.title }}</p>
-          <span *ngIf="!n.read" class="h-2 w-2 rounded-full bg-brand-500"></span>
+          <p class="font-semibold text-ink">{{ n.title }}</p>
+          <span *ngIf="!n.read" class="h-2 w-2 rounded-full bg-brand-500 animate-pulse-dot"></span>
         </div>
-        <p class="text-sm text-slate-600">{{ n.message }}</p>
-        <p class="mt-0.5 text-xs text-slate-400">{{ n.createdAt | date:'medium' }}</p>
+        <p class="text-sm text-ink-soft">{{ n.message }}</p>
+        <p class="mt-0.5 text-xs text-ink-faint">{{ n.createdAt | date:'medium' }}</p>
       </div>
       <button *ngIf="!n.read" class="btn btn-ghost btn-sm" (click)="read(n)">Mark read</button>
     </div>
-    <div *ngIf="items().length === 0" class="p-10 text-center text-sm text-slate-400">
-      <span class="material-icons text-3xl text-slate-300">notifications_off</span>
+    <div *ngIf="items().length === 0" class="p-10 text-center text-sm text-ink-faint">
+      <span class="material-icons text-3xl text-ink-faint/60">notifications_off</span>
       <p class="mt-2">No notifications yet.</p>
     </div>
   </div>`

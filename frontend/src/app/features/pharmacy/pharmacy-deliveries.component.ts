@@ -11,35 +11,39 @@ import { statusClass } from '../../shared/status-badge';
   imports: [CommonModule, TrackingMapComponent],
   template: `
   <h1>Deliveries</h1>
-  <p class="text-sm text-slate-500">Follow deliveries heading to your pharmacy in real time.</p>
+  <p class="text-sm text-ink-mute">Follow deliveries heading to your pharmacy in real time.</p>
 
   <div class="mt-5 grid gap-6 lg:grid-cols-[360px_1fr]">
     <div class="card overflow-hidden">
-      <div class="border-b border-slate-100 p-4"><p class="card-title">Your deliveries</p></div>
-      <div class="divide-y divide-slate-100">
+      <div class="border-b border-line/70 p-4"><p class="card-title">Your deliveries</p></div>
+      <div class="stagger divide-y divide-line/70">
         <button *ngFor="let d of deliveries()" (click)="select(d)"
-                class="flex w-full items-center gap-3 p-4 text-left hover:bg-slate-50"
-                [class.bg-brand-50]="selected()?.id === d.id">
-          <span class="stat-icon bg-accent-100 text-accent-600"><span class="material-icons">local_shipping</span></span>
+                class="flex w-full items-center gap-3 p-4 text-left transition-colors duration-150 hover:bg-raised/50"
+                [ngClass]="{'bg-brand-50 dark:bg-brand-500/10': selected()?.id === d.id}">
+          <span class="stat-icon t-accent"><span class="material-icons">local_shipping</span></span>
           <div class="flex-1">
-            <p class="font-medium text-slate-800">{{ d.reference }}</p>
-            <p class="text-xs text-slate-500">{{ d.stops.length }} stop(s) · {{ (d.progress*100)|number:'1.0-0' }}%</p>
+            <p class="font-medium text-ink">{{ d.reference }}</p>
+            <p class="text-xs text-ink-mute">{{ d.stops.length }} stop(s) · {{ (d.progress*100)|number:'1.0-0' }}%</p>
+            <div class="progress mt-1.5 max-w-[140px]">
+              <span class="progress-bar bg-gradient-to-r from-brand-500 to-accent-500" [style.width.%]="d.progress*100"></span>
+            </div>
           </div>
           <span [class]="cls(d.status)">{{ d.status }}</span>
         </button>
-        <div *ngIf="deliveries().length===0" class="p-10 text-center text-sm text-slate-400">No deliveries concern your pharmacy yet.</div>
+        <div *ngIf="deliveries().length===0" class="p-10 text-center text-sm text-ink-faint">No deliveries concern your pharmacy yet.</div>
       </div>
     </div>
 
-    <div class="card card-p" *ngIf="selected() as d">
+    <div class="card card-p animate-fade-up" *ngIf="selected() as d">
       <div class="mb-4 flex items-center justify-between">
-        <div><p class="card-title">{{ d.reference }}</p><p class="text-xs text-slate-500">Live tracking</p></div>
+        <div><p class="card-title">{{ d.reference }}</p>
+          <p class="flex items-center gap-1.5 text-xs text-ink-mute"><span class="live-dot"></span> Live tracking</p></div>
         <span [class]="cls(d.status)">{{ d.status }}</span>
       </div>
       <app-tracking-map [delivery]="d"></app-tracking-map>
     </div>
-    <div class="card card-p flex items-center justify-center text-slate-400" *ngIf="!selected()">
-      <div class="text-center"><span class="material-icons text-4xl text-slate-200">map</span><p class="mt-2 text-sm">Select a delivery to track it.</p></div>
+    <div class="card card-p flex items-center justify-center text-ink-faint" *ngIf="!selected()">
+      <div class="text-center"><span class="material-icons text-4xl text-ink-faint/50">map</span><p class="mt-2 text-sm">Select a delivery to track it.</p></div>
     </div>
   </div>`
 })

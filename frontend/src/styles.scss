@@ -2,74 +2,188 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   StockCare design tokens — light & dark themes
+   ============================================================ */
+:root {
+  --sc-canvas: 248 250 252;
+  --sc-surface: 255 255 255;
+  --sc-raised: 241 245 249;
+  --sc-line: 226 232 240;
+  --sc-line-strong: 203 213 225;
+  --sc-ink: 15 23 42;
+  --sc-ink-soft: 51 65 85;
+  --sc-ink-mute: 100 116 139;
+  --sc-ink-faint: 148 163 184;
+}
+[data-theme="dark"] {
+  --sc-canvas: 10 12 16;
+  --sc-surface: 23 26 33;
+  --sc-raised: 33 37 46;
+  --sc-line: 43 48 60;
+  --sc-line-strong: 62 68 82;
+  --sc-ink: 237 239 244;
+  --sc-ink-soft: 203 208 218;
+  --sc-ink-mute: 142 150 165;
+  --sc-ink-faint: 104 112 128;
+}
+
 @layer base {
   html, body { height: 100%; }
-  body { @apply bg-slate-50 text-slate-800 antialiased; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
-  h1 { @apply text-2xl font-bold text-slate-900; }
-  h2 { @apply text-xl font-semibold text-slate-900; }
+  body {
+    @apply bg-canvas text-ink-soft antialiased;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    transition: background-color .3s ease, color .3s ease;
+  }
+  h1 { @apply font-display text-2xl font-bold tracking-tight text-ink; }
+  h2 { @apply font-display text-xl font-semibold tracking-tight text-ink; }
+
+  ::selection { @apply bg-brand-500/20; }
+
+  /* Refined scrollbars */
+  * { scrollbar-width: thin; scrollbar-color: rgb(var(--sc-line-strong)) transparent; }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-thumb { background: rgb(var(--sc-line-strong)); border-radius: 9999px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+    }
+  }
 }
 
 @layer components {
-  /* Buttons */
+  /* ----- Buttons ----- */
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold
-           transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50
-           disabled:cursor-not-allowed select-none;
+           transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2
+           focus-visible:ring-offset-1 focus-visible:ring-offset-canvas disabled:opacity-50
+           disabled:cursor-not-allowed disabled:hover:scale-100 select-none active:scale-[.98];
   }
   .btn-sm { @apply px-3 py-1.5 text-xs; }
-  .btn-primary { @apply bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-300; }
-  .btn-accent  { @apply bg-accent-500 text-white hover:bg-accent-600 focus:ring-accent-300; }
-  .btn-danger  { @apply bg-rose-600 text-white hover:bg-rose-700 focus:ring-rose-300; }
-  .btn-ghost   { @apply bg-white text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-50; }
-  .btn-soft    { @apply bg-brand-50 text-brand-700 hover:bg-brand-100; }
+  .btn-primary {
+    @apply bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-soft
+           hover:from-brand-600 hover:to-brand-700 hover:shadow-glow-brand hover:scale-[1.02]
+           focus-visible:ring-brand-300;
+  }
+  .btn-accent {
+    @apply bg-gradient-to-b from-accent-500 to-accent-600 text-white shadow-soft
+           hover:from-accent-600 hover:to-accent-700 hover:scale-[1.02] focus-visible:ring-accent-300;
+  }
+  .btn-danger { @apply bg-rose-600 text-white hover:bg-rose-700 hover:scale-[1.02] focus-visible:ring-rose-300; }
+  .btn-ghost {
+    @apply bg-surface text-ink-soft ring-1 ring-inset ring-line hover:bg-raised hover:text-ink
+           focus-visible:ring-brand-300;
+  }
+  .btn-soft { @apply bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-300 dark:hover:bg-brand-500/20 focus-visible:ring-brand-300; }
 
-  /* Cards */
-  .card { @apply rounded-2xl bg-white shadow-card ring-1 ring-slate-100; }
+  /* ----- Cards ----- */
+  .card {
+    @apply rounded-2xl bg-surface shadow-card ring-1 ring-line/70
+           transition-shadow duration-300;
+  }
+  .card-hover { @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lift hover:ring-line-strong/70; }
   .card-p { @apply p-5; }
-  .card-title { @apply text-base font-semibold text-slate-900; }
+  .card-title { @apply font-display text-base font-semibold text-ink; }
+  [data-theme="dark"] .card { box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+  [data-theme="dark"] .card-hover:hover { box-shadow: 0 8px 24px -8px rgba(0,0,0,.6); }
 
-  /* Forms */
-  .label { @apply mb-1 block text-xs font-medium text-slate-600; }
+  /* ----- Forms ----- */
+  .label { @apply mb-1 block text-xs font-medium text-ink-mute; }
   .input {
-    @apply w-full rounded-lg border-0 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm
-           ring-1 ring-inset ring-slate-200 placeholder:text-slate-400
-           focus:ring-2 focus:ring-inset focus:ring-brand-500;
+    @apply w-full rounded-lg border-0 bg-surface px-3 py-2 text-sm text-ink shadow-sm
+           ring-1 ring-inset ring-line placeholder:text-ink-faint transition-shadow duration-200
+           focus:ring-2 focus:ring-inset focus:ring-brand-500 focus:shadow-[0_0_0_4px_rgba(29,95,214,.08)];
   }
   select.input { @apply pr-8; }
+  input[type="date"].input, input[type="datetime-local"].input { color-scheme: light; }
+  [data-theme="dark"] input[type="date"].input,
+  [data-theme="dark"] input[type="datetime-local"].input { color-scheme: dark; }
 
-  /* Badges */
+  /* ----- Badges ----- */
   .badge { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap; }
-  .b-grey   { @apply bg-slate-100 text-slate-600; }
-  .b-blue   { @apply bg-brand-50 text-brand-700; }
-  .b-teal   { @apply bg-accent-100 text-accent-700; }
-  .b-green  { @apply bg-emerald-100 text-emerald-700; }
-  .b-orange { @apply bg-amber-100 text-amber-700; }
-  .b-purple { @apply bg-violet-100 text-violet-700; }
-  .b-red    { @apply bg-rose-100 text-rose-700; }
+  .b-grey   { @apply bg-raised text-ink-mute; }
+  .b-blue   { @apply bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300; }
+  .b-teal   { @apply bg-accent-100 text-accent-700 dark:bg-accent-500/15 dark:text-accent-300; }
+  .b-green  { @apply bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300; }
+  .b-orange { @apply bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300; }
+  .b-purple { @apply bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300; }
+  .b-red    { @apply bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300; }
 
-  /* Nav */
+  /* ----- Icon tones (stat icons, list icons) ----- */
+  .stat-icon { @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-transform duration-300; }
+  .t-brand  { @apply bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-300; }
+  .t-accent { @apply bg-accent-100 text-accent-600 dark:bg-accent-500/10 dark:text-accent-300; }
+  .t-amber  { @apply bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300; }
+  .t-rose   { @apply bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300; }
+  .t-violet { @apply bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-300; }
+  .t-grey   { @apply bg-raised text-ink-mute; }
+  .t-indigo { @apply bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300; }
+
+  /* ----- Navigation ----- */
   .nav-link {
-    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600
-           hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer;
+    @apply relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-ink-mute
+           transition-all duration-200 hover:bg-raised hover:text-ink cursor-pointer;
   }
-  .nav-link.active { @apply bg-brand-50 text-brand-700; }
-  .nav-link .material-icons { @apply text-[20px]; }
+  .nav-link.active {
+    @apply bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300;
+  }
+  .nav-link.active::before {
+    content: '';
+    @apply absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-brand-500 to-accent-500;
+  }
+  .nav-link .material-icons { @apply text-[20px] transition-transform duration-200; }
+  .nav-link:hover .material-icons { transform: translateX(1px) scale(1.05); }
 
-  /* Tables */
+  /* ----- Tables ----- */
   .tbl { @apply w-full text-sm; }
-  .tbl thead th { @apply bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500; }
-  .tbl tbody td { @apply border-t border-slate-100 px-4 py-3 align-middle; }
-  .tbl tbody tr:hover { @apply bg-slate-50/60; }
+  .tbl thead th { @apply bg-raised/60 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-mute; }
+  .tbl tbody td { @apply border-t border-line/70 px-4 py-3 align-middle; }
+  .tbl tbody tr { @apply transition-colors duration-150; }
+  .tbl tbody tr:hover { @apply bg-raised/40; }
 
-  .muted { @apply text-slate-500; }
-  .stat-icon { @apply flex h-11 w-11 items-center justify-center rounded-xl; }
-  .map { @apply h-[440px] w-full overflow-hidden rounded-xl ring-1 ring-slate-200; }
+  /* ----- Progress bars (stock levels, delivery progress) ----- */
+  .progress { @apply block h-1.5 w-full overflow-hidden rounded-full bg-raised; }
+  .progress-bar { @apply block h-full rounded-full transition-[width] duration-500 ease-out; }
+
+  /* ----- Skeletons ----- */
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-raised;
+    background-image: linear-gradient(90deg, transparent, rgb(var(--sc-line) / .6), transparent);
+    background-size: 400px 100%;
+    background-repeat: no-repeat;
+    animation: shimmer 1.4s linear infinite;
+  }
+
+  /* ----- Simulated-time visual language (always distinct from real data) ----- */
+  .sim-zone { @apply rounded-2xl border border-dashed border-amber-300/70 bg-amber-50/50 dark:border-amber-400/30 dark:bg-amber-500/5; }
+
+  /* ----- Misc ----- */
+  .muted { @apply text-ink-mute; }
+  .map { @apply h-[440px] w-full overflow-hidden rounded-xl ring-1 ring-line; }
+  .live-dot { @apply inline-block h-2 w-2 rounded-full bg-accent-500 animate-pulse-dot; }
+
+  /* Staggered entrance for grids/lists */
+  .stagger > * { animation: fade-up .45s cubic-bezier(0,0,.2,1) both; }
+  .stagger > *:nth-child(1) { animation-delay: .03s; }
+  .stagger > *:nth-child(2) { animation-delay: .08s; }
+  .stagger > *:nth-child(3) { animation-delay: .13s; }
+  .stagger > *:nth-child(4) { animation-delay: .18s; }
+  .stagger > *:nth-child(5) { animation-delay: .23s; }
+  .stagger > *:nth-child(6) { animation-delay: .28s; }
+  .stagger > *:nth-child(7) { animation-delay: .33s; }
+  .stagger > *:nth-child(8) { animation-delay: .38s; }
 }
 
 /* Toasts */
 .toast-wrap { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
-.toast { animation: toast-in .18s ease-out; }
-@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.toast { animation: toast-in .25s cubic-bezier(0,0,.2,1); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
 
 /* Leaflet marker div reset (Tailwind preflight) */
 .stop-icon { background: transparent; border: 0; }
+[data-theme="dark"] .leaflet-tile { filter: brightness(.7) contrast(1.1) saturate(.8); }
+[data-theme="dark"] .leaflet-container { background: #14161c; }

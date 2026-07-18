@@ -13,45 +13,52 @@ import { statusClass } from '../../shared/status-badge';
   imports: [CommonModule, FormsModule],
   template: `
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <div><h1>Incoming requests</h1><p class="text-sm text-slate-500">Requests are prioritized automatically on arrival. Approve them for delivery planning.</p></div>
+    <div><h1>Incoming requests</h1><p class="text-sm text-ink-mute">Requests are prioritized automatically on arrival. Approve them for delivery planning.</p></div>
     <div class="flex items-center gap-2">
-      <label class="text-xs font-medium text-slate-500">Status</label>
-      <select class="input w-44" [(ngModel)]="filter" (ngModelChange)="load()">
+      <label class="text-xs font-medium text-ink-mute" for="status-filter">Status</label>
+      <select id="status-filter" class="input w-44" [(ngModel)]="filter" (ngModelChange)="load()">
         <option value="">All</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
       </select>
     </div>
   </div>
 
-  <div class="mt-5 space-y-3">
-    <div *ngFor="let r of reqs()" class="card">
-      <button class="flex w-full flex-wrap items-center gap-3 p-4 text-left" (click)="toggle(r.id)">
-        <span class="stat-icon bg-slate-50 text-slate-500"><span class="material-icons">storefront</span></span>
-        <div class="flex-1 min-w-[140px]">
-          <p class="font-medium text-slate-800">{{ r.pharmacyName }}</p>
-          <p class="text-xs text-slate-500">{{ r.items[0]?.medication?.name }}<span *ngIf="r.items.length>1"> +{{r.items.length-1}}</span></p>
+  <div class="stagger mt-5 space-y-3">
+    <div *ngFor="let r of reqs()" class="card overflow-hidden">
+      <button class="flex w-full flex-wrap items-center gap-3 p-4 text-left transition-colors hover:bg-raised/40" (click)="toggle(r.id)"
+              [attr.aria-expanded]="expanded()===r.id">
+        <span class="stat-icon t-grey"><span class="material-icons">storefront</span></span>
+        <div class="min-w-[140px] flex-1">
+          <p class="font-medium text-ink">{{ r.pharmacyName }}</p>
+          <p class="text-xs text-ink-mute">{{ r.items[0]?.medication?.name }}<span *ngIf="r.items.length>1"> +{{r.items.length-1}}</span></p>
         </div>
         <span *ngIf="r.priority" class="badge b-purple">priority {{ r.priority.coefficient }}</span>
         <span [class]="cls(r.urgency)">{{ r.urgency }}</span>
         <span [class]="cls(r.status)">{{ r.status }}</span>
-        <span class="material-icons text-slate-300">{{ expanded()===r.id ? 'expand_less' : 'expand_more' }}</span>
+        <span class="material-icons text-ink-faint transition-transform duration-200" [class.rotate-180]="expanded()===r.id">expand_more</span>
       </button>
 
-      <div *ngIf="expanded()===r.id" class="space-y-3 border-t border-slate-100 p-4">
-        <ul class="space-y-1 text-sm text-slate-600">
-          <li *ngFor="let it of r.items" class="flex items-center gap-2"><span class="material-icons text-[16px] text-slate-300">chevron_right</span>{{ it.medication.name }} × <b>{{ it.requestedQuantity }}</b></li>
+      <div *ngIf="expanded()===r.id" class="animate-fade-in space-y-3 border-t border-line/70 p-4">
+        <ul class="space-y-1 text-sm text-ink-soft">
+          <li *ngFor="let it of r.items" class="flex items-center gap-2"><span class="material-icons text-[16px] text-ink-faint">chevron_right</span>{{ it.medication.name }} × <b>{{ it.requestedQuantity }}</b></li>
         </ul>
-        <p *ngIf="r.notes" class="text-sm text-slate-500"><span class="font-medium text-slate-600">Pharmacy note:</span> {{ r.notes }}</p>
+        <p *ngIf="r.notes" class="text-sm text-ink-mute"><span class="font-medium text-ink-soft">Pharmacy note:</span> {{ r.notes }}</p>
 
-        <div *ngIf="r.priority" class="rounded-lg bg-violet-50 p-3">
-          <p class="text-sm font-semibold text-violet-800">Priority {{ r.priority.coefficient }}/100 <span class="text-xs font-normal text-violet-500">({{ r.priority.calculationVersion }})</span></p>
+        <div *ngIf="r.priority" class="rounded-xl bg-violet-50 p-3 dark:bg-violet-500/10">
+          <div class="flex items-center gap-3">
+            <p class="text-sm font-semibold text-violet-800 dark:text-violet-300">Priority {{ r.priority.coefficient }}/100
+              <span class="text-xs font-normal text-violet-500 dark:text-violet-400">({{ r.priority.calculationVersion }})</span></p>
+            <span class="progress max-w-[140px] flex-1 bg-violet-100 dark:bg-violet-500/20">
+              <span class="progress-bar bg-gradient-to-r from-violet-500 to-brand-500" [style.width.%]="r.priority.coefficient"></span>
+            </span>
+          </div>
           <div class="mt-2 flex flex-wrap gap-1.5">
             <span *ngFor="let f of factorList(r)" class="badge b-purple">{{ f.k }}: {{ f.v }}</span>
           </div>
-          <p class="mt-2 text-xs text-violet-600">{{ r.priority.explanation }}</p>
+          <p class="mt-2 text-xs text-violet-600 dark:text-violet-400">{{ r.priority.explanation }}</p>
         </div>
 
         <div class="flex flex-wrap items-end gap-2">
-          <div class="flex-1 min-w-[200px]">
+          <div class="min-w-[200px] flex-1">
             <label class="label">Internal note</label>
             <div class="flex gap-2">
               <input class="input" [(ngModel)]="noteDraft[r.id]" [placeholder]="r.internalNotes || 'Add a depot note…'">
@@ -68,11 +75,11 @@ import { statusClass } from '../../shared/status-badge';
             <span class="material-icons text-[16px]">verified</span> Approve for planning</button>
           <button class="btn btn-ghost btn-sm" *ngIf="r.status==='RECEIVED' && !r.priority" (click)="prioritize(r)" title="Priority calculation failed — retry">
             <span class="material-icons text-[16px]">refresh</span> Retry priority</button>
-          <button class="btn btn-ghost btn-sm text-rose-600" *ngIf="!['DELIVERED','CANCELLED','REJECTED'].includes(r.status)" (click)="setStatus(r,'REJECTED')">Reject</button>
+          <button class="btn btn-ghost btn-sm text-rose-600 dark:text-rose-400" *ngIf="!['DELIVERED','CANCELLED','REJECTED'].includes(r.status)" (click)="setStatus(r,'REJECTED')">Reject</button>
         </div>
       </div>
     </div>
-    <div *ngIf="reqs().length===0" class="card p-12 text-center text-slate-400">No requests match this filter.</div>
+    <div *ngIf="reqs().length===0" class="card p-12 text-center text-ink-faint">No requests match this filter.</div>
   </div>`
 })
 export class DepotRequestsComponent implements OnInit {
