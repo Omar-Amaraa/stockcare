@@ -1,49 +1,83 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { ToastService } from '../../core/toast.service';
-import { Delivery, Driver, PharmacyRequest, Vehicle } from '../../core/models';
+import { StreamService } from '../../core/stream.service';
+import { Delivery } from '../../core/models';
 import { TrackingMapComponent } from '../../shared/tracking-map.component';
 import { statusClass } from '../../shared/status-badge';
 
+/**
+ * Fully automated planning: approved requests are solved by the MILP optimizer in the background
+ * (vehicle assignment + stop order). This screen only shows the optimizer's proposals — the only
+ * human decision is Approve (dispatch) or Deny (cancel). No vehicle or request picking.
+ */
 @Component({
   selector: 'app-depot-deliveries',
   standalone: true,
-  imports: [CommonModule, FormsModule, TrackingMapComponent],
+  imports: [CommonModule, TrackingMapComponent],
   template: `
-  <h1>Deliveries & live tracking</h1>
-  <p class="text-sm text-slate-500">Plan routes from approved requests and watch them in real time.</p>
+  <h1>Route proposals & live tracking</h1>
+  <p class="text-sm text-slate-500">The MILP optimizer plans routes automatically when requests are approved. You only approve or deny each proposed route.</p>
 
-  <!-- Planner -->
-  <div class="card card-p mt-5">
-    <div class="mb-3 flex items-center gap-2">
-      <p class="card-title">Plan a delivery</p>
-      <span class="badge b-orange">mock · non-optimized</span>
-    </div>
-    <div *ngIf="approved().length===0" class="rounded-lg bg-slate-50 p-4 text-sm text-slate-400">
-      No approved requests yet. Approve requests in the Requests queue first.
-    </div>
-    <div *ngIf="approved().length" class="space-y-2">
-      <label *ngFor="let r of approved()" class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-100 p-3 hover:bg-slate-50">
-        <input type="checkbox" class="h-4 w-4 rounded text-brand-600" [(ngModel)]="picked[r.id]" [name]="r.id">
-        <div class="flex-1"><p class="text-sm font-medium text-slate-800">{{ r.pharmacyName }}</p>
-          <p class="text-xs text-slate-500">{{ r.items[0]?.medication?.name }} × {{ r.items[0]?.requestedQuantity }}</p></div>
-        <span *ngIf="r.priority" class="badge b-purple">priority {{ r.priority.coefficient }}</span>
-      </label>
-    </div>
-    <div class="mt-4 flex flex-wrap items-end gap-3">
-      <div><label class="label">Vehicle</label>
-        <select class="input w-56" [(ngModel)]="vehicleId"><option value="">Select…</option>
-          <option *ngFor="let v of vehicles()" [value]="v.id">{{ v.code }} · {{ v.capacityUnits }}u{{ v.refrigerated ? ' ❄' : '' }}</option></select></div>
-      <div><label class="label">Driver</label>
-        <select class="input w-56" [(ngModel)]="driverId"><option value="">Optional…</option>
-          <option *ngFor="let d of drivers()" [value]="d.id">{{ d.fullName }}</option></select></div>
-      <button class="btn btn-primary" (click)="plan()" [disabled]="!vehicleId || selectedIds().length===0">
-        <span class="material-icons text-[18px]">route</span> Create plan</button>
-    </div>
+  <!-- Optimizer status banner -->
+  <div *ngIf="optimizing()" class="mt-4 flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+    <span class="material-icons animate-spin text-indigo-500">progress_activity</span>
+    <div><p class="text-sm font-semibold text-indigo-800">MILP optimizer running</p>
+      <p class="text-xs text-indigo-600">{{ optimizing() }}</p></div>
+  </div>
+  <div *ngIf="planError()" class="mt-4 flex items-center justify-between gap-3 rounded-xl border border-rose-100 bg-rose-50 p-4">
+    <div class="flex items-center gap-3"><span class="material-icons text-rose-500">error</span>
+      <p class="text-sm text-rose-700">{{ planError() }}</p></div>
+    <button class="btn btn-ghost btn-sm" (click)="planError.set(null)">Dismiss</button>
   </div>
 
+  <!-- Proposed routes: the single human decision point -->
+  <div class="mt-5" *ngIf="proposals().length">
+    <div class="mb-2 flex items-center gap-2">
+      <h2 class="text-base font-semibold text-slate-800">Proposed routes</h2>
+      <span class="badge b-purple">{{ proposals().length }} awaiting your decision</span>
+    </div>
+    <div class="grid gap-4 xl:grid-cols-2">
+      <div *ngFor="let d of proposals()" class="card card-p border-l-4 border-l-indigo-400">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p class="card-title">{{ d.reference }}</p>
+            <p class="text-xs text-slate-500">
+              Vehicle <b>{{ d.vehicle?.code }}</b>{{ d.vehicle?.refrigerated ? ' ❄' : '' }} (chosen by optimizer)
+              <span *ngIf="d.driver"> · {{ d.driver?.fullName }}</span>
+            </p>
+          </div>
+          <span class="badge" [class.b-green]="d.optimized" [class.b-orange]="!d.optimized">
+            {{ d.optimized ? 'MILP optimal' : 'heuristic' }} · {{ d.optimizerVersion }}</span>
+        </div>
+        <ol class="mt-3 space-y-1">
+          <li *ngFor="let s of d.stops" class="flex items-center gap-2 text-sm text-slate-600">
+            <span class="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-bold text-indigo-700">{{ s.sequence }}</span>
+            {{ s.pharmacyName }}
+            <span *ngIf="s.estimatedArrivalMinute != null" class="text-xs text-slate-400">~{{ s.estimatedArrivalMinute }} min</span>
+          </li>
+        </ol>
+        <p class="mt-2 text-xs text-slate-500">
+          {{ d.stops.length }} stop(s) · {{ d.totalDistanceKm | number:'1.0-1' }} km ·
+          {{ d.totalDurationMinutes | number:'1.0-0' }} min · {{ d.items.length }} item line(s)</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button class="btn btn-primary btn-sm" (click)="approve(d)">
+            <span class="material-icons text-[16px]">check_circle</span> Approve & dispatch</button>
+          <button class="btn btn-ghost btn-sm text-rose-600" (click)="deny(d)">
+            <span class="material-icons text-[16px]">cancel</span> Deny</button>
+          <button class="btn btn-ghost btn-sm" (click)="select(d)">
+            <span class="material-icons text-[16px]">map</span> View on map</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div *ngIf="proposals().length===0 && !optimizing()" class="mt-5 card p-6 text-sm text-slate-400">
+    No route proposals pending. Approve pharmacy requests in the Requests queue — the optimizer plans routes automatically from there.
+  </div>
+
+  <!-- Active + past deliveries with live tracking -->
   <div class="mt-6 grid gap-6 lg:grid-cols-[360px_1fr]">
     <div class="card overflow-hidden">
       <div class="border-b border-slate-100 p-4"><p class="card-title">Deliveries</p></div>
@@ -66,43 +100,60 @@ import { statusClass } from '../../shared/status-badge';
       </div>
       <app-tracking-map [delivery]="d"></app-tracking-map>
       <div class="mt-4 flex flex-wrap gap-2">
-        <button class="btn btn-primary btn-sm" (click)="action(d,'start')" [disabled]="d.status!=='PLANNED'"><span class="material-icons text-[16px]">play_arrow</span> Start</button>
-        <button class="btn btn-ghost btn-sm" (click)="action(d,'pause')"><span class="material-icons text-[16px]">pause</span> Pause</button>
-        <button class="btn btn-ghost btn-sm" (click)="action(d,'resume')"><span class="material-icons text-[16px]">play_circle</span> Resume</button>
-        <button class="btn btn-accent btn-sm" (click)="action(d,'complete')"><span class="material-icons text-[16px]">done_all</span> Complete</button>
-        <button class="btn btn-ghost btn-sm text-rose-600" (click)="action(d,'cancel')">Cancel</button>
+        <button *ngIf="d.status==='PLANNED'" class="btn btn-primary btn-sm" (click)="approve(d)">
+          <span class="material-icons text-[16px]">check_circle</span> Approve & dispatch</button>
+        <button *ngIf="d.status==='PLANNED'" class="btn btn-ghost btn-sm text-rose-600" (click)="deny(d)">Deny</button>
+        <ng-container *ngIf="d.status!=='PLANNED' && d.status!=='DELIVERED' && d.status!=='CANCELLED'">
+          <button class="btn btn-ghost btn-sm" (click)="action(d,'pause')"><span class="material-icons text-[16px]">pause</span> Pause</button>
+          <button class="btn btn-ghost btn-sm" (click)="action(d,'resume')"><span class="material-icons text-[16px]">play_circle</span> Resume</button>
+          <button class="btn btn-accent btn-sm" (click)="action(d,'complete')"><span class="material-icons text-[16px]">done_all</span> Complete</button>
+        </ng-container>
       </div>
     </div>
     <div class="card card-p flex items-center justify-center text-slate-400" *ngIf="!selected()">
-      <div class="text-center"><span class="material-icons text-4xl text-slate-200">local_shipping</span><p class="mt-2 text-sm">Plan or select a delivery to track it.</p></div>
+      <div class="text-center"><span class="material-icons text-4xl text-slate-200">local_shipping</span><p class="mt-2 text-sm">Select a delivery to track it.</p></div>
     </div>
   </div>`
 })
-export class DepotDeliveriesComponent implements OnInit {
+export class DepotDeliveriesComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private toast = inject(ToastService);
-  approved = signal<PharmacyRequest[]>([]);
-  vehicles = signal<Vehicle[]>([]);
-  drivers = signal<Driver[]>([]);
+  private stream = inject(StreamService);
+  private sub?: Subscription;
+  private timer?: ReturnType<typeof setInterval>;
+
   deliveries = signal<Delivery[]>([]);
   selected = signal<Delivery | null>(null);
-  picked: Record<string, boolean> = {};
-  vehicleId = '';
-  driverId = '';
+  optimizing = signal<string | null>(null);
+  planError = signal<string | null>(null);
   cls = statusClass;
 
-  ngOnInit(): void { this.load(); }
-  load(): void {
-    this.api.depotRequests('PLANNED').subscribe((p) => this.approved.set(p.content));
-    this.api.vehicles().subscribe((v) => this.vehicles.set(v));
-    this.api.drivers().subscribe((d) => this.drivers.set(d));
-    this.api.depotDeliveries().subscribe((d) => this.deliveries.set(d));
+  ngOnInit(): void {
+    this.load();
+    this.stream.connect();
+    this.sub = this.stream.updates.subscribe((u) => {
+      if (u.type !== 'ROUTE_STATE') return;
+      if (u.status === 'OPTIMIZING') { this.optimizing.set(u.message); this.planError.set(null); }
+      if (u.status === 'PLANNED') { this.optimizing.set(null); this.toast.success(u.message); this.load(); }
+      if (u.status === 'FAILED') { this.optimizing.set(null); this.planError.set(u.message); this.load(); }
+    });
+    this.timer = setInterval(() => this.load(), 10000);
   }
-  selectedIds(): string[] { return Object.keys(this.picked).filter((k) => this.picked[k]); }
-  plan(): void {
-    this.api.planDelivery({ requestIds: this.selectedIds(), vehicleId: this.vehicleId, driverId: this.driverId || null }).subscribe({
-      next: (d) => { this.toast.success('Delivery planned'); this.picked = {}; this.load(); this.select(d); },
-      error: (e) => this.toast.error(e.error?.message || 'Planning failed')
+  ngOnDestroy(): void { this.sub?.unsubscribe(); if (this.timer) clearInterval(this.timer); }
+
+  load(): void { this.api.depotDeliveries().subscribe((d) => this.deliveries.set(d)); }
+  proposals(): Delivery[] { return this.deliveries().filter((d) => d.status === 'PLANNED'); }
+
+  approve(d: Delivery): void {
+    this.api.deliveryAction(d.id, 'start').subscribe({
+      next: (u) => { this.toast.success('Route approved — vehicle dispatched'); this.selected.set(u); this.load(); },
+      error: (e) => this.toast.error(e.error?.message || 'Could not start delivery')
+    });
+  }
+  deny(d: Delivery): void {
+    this.api.deliveryAction(d.id, 'cancel').subscribe({
+      next: () => { this.toast.success('Route denied — requests stay approved for the next solve'); this.selected.set(null); this.load(); },
+      error: (e) => this.toast.error(e.error?.message || 'Could not cancel delivery')
     });
   }
   select(d: Delivery): void { this.api.getDelivery(d.id).subscribe((full) => this.selected.set(full)); }
