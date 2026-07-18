@@ -1,0 +1,842 @@
+[
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M001",
+    "quantity": 122,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M002",
+    "quantity": 464,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M003",
+    "quantity": 84,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M004",
+    "quantity": 100,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M005",
+    "quantity": 35,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M006",
+    "quantity": 363,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M007",
+    "quantity": 556,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M008",
+    "quantity": 234,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M009",
+    "quantity": 83,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M010",
+    "quantity": 25,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M011",
+    "quantity": 165,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M012",
+    "quantity": 86,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M013",
+    "quantity": 338,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M014",
+    "quantity": 17,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH01",
+    "medicine_id": "M015",
+    "quantity": 144,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M001",
+    "quantity": 191,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M002",
+    "quantity": 293,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M003",
+    "quantity": 154,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M004",
+    "quantity": 76,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M005",
+    "quantity": 89,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M006",
+    "quantity": 113,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M007",
+    "quantity": 970,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M008",
+    "quantity": 209,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M009",
+    "quantity": 103,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M010",
+    "quantity": 59,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M011",
+    "quantity": 121,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M012",
+    "quantity": 64,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M013",
+    "quantity": 338,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M014",
+    "quantity": 48,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH02",
+    "medicine_id": "M015",
+    "quantity": 59,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M001",
+    "quantity": 176,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M002",
+    "quantity": 42,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M003",
+    "quantity": 296,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M004",
+    "quantity": 137,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M005",
+    "quantity": 189,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M006",
+    "quantity": 476,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M007",
+    "quantity": 1555,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M008",
+    "quantity": 258,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M009",
+    "quantity": 126,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M010",
+    "quantity": 160,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M011",
+    "quantity": 69,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M012",
+    "quantity": 122,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M013",
+    "quantity": 479,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M014",
+    "quantity": 204,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH03",
+    "medicine_id": "M015",
+    "quantity": 48,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M001",
+    "quantity": 52,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M002",
+    "quantity": 164,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M003",
+    "quantity": 211,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M004",
+    "quantity": 114,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M005",
+    "quantity": 113,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M006",
+    "quantity": 164,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M007",
+    "quantity": 903,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M008",
+    "quantity": 178,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M009",
+    "quantity": 113,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M010",
+    "quantity": 17,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M011",
+    "quantity": 200,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M012",
+    "quantity": 72,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M013",
+    "quantity": 277,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M014",
+    "quantity": 39,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH04",
+    "medicine_id": "M015",
+    "quantity": 48,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M001",
+    "quantity": 178,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M002",
+    "quantity": 123,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M003",
+    "quantity": 181,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M004",
+    "quantity": 115,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M005",
+    "quantity": 71,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M006",
+    "quantity": 108,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M007",
+    "quantity": 789,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M008",
+    "quantity": 218,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M009",
+    "quantity": 82,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M010",
+    "quantity": 28,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M011",
+    "quantity": 49,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M012",
+    "quantity": 126,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M013",
+    "quantity": 145,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M014",
+    "quantity": 56,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH05",
+    "medicine_id": "M015",
+    "quantity": 71,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M001",
+    "quantity": 48,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M002",
+    "quantity": 103,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M003",
+    "quantity": 46,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M004",
+    "quantity": 43,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M005",
+    "quantity": 125,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M006",
+    "quantity": 131,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M007",
+    "quantity": 317,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M008",
+    "quantity": 103,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M009",
+    "quantity": 57,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M010",
+    "quantity": 14,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M011",
+    "quantity": 129,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M012",
+    "quantity": 18,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M013",
+    "quantity": 187,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M014",
+    "quantity": 94,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH06",
+    "medicine_id": "M015",
+    "quantity": 14,
+    "urgency": "low",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M001",
+    "quantity": 116,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M002",
+    "quantity": 118,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M003",
+    "quantity": 136,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M004",
+    "quantity": 55,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M005",
+    "quantity": 85,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M006",
+    "quantity": 169,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M007",
+    "quantity": 566,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M008",
+    "quantity": 121,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M009",
+    "quantity": 62,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M010",
+    "quantity": 65,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M011",
+    "quantity": 117,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M012",
+    "quantity": 81,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M013",
+    "quantity": 288,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M014",
+    "quantity": 66,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH07",
+    "medicine_id": "M015",
+    "quantity": 36,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M001",
+    "quantity": 104,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M002",
+    "quantity": 183,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M003",
+    "quantity": 106,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M004",
+    "quantity": 27,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M005",
+    "quantity": 111,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M006",
+    "quantity": 255,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M007",
+    "quantity": 822,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M008",
+    "quantity": 83,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M009",
+    "quantity": 61,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M010",
+    "quantity": 53,
+    "urgency": "medium",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M011",
+    "quantity": 158,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M012",
+    "quantity": 123,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M013",
+    "quantity": 312,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M014",
+    "quantity": 104,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  },
+  {
+    "pharmacy_id": "PH08",
+    "medicine_id": "M015",
+    "quantity": 106,
+    "urgency": "high",
+    "timestamp": "2026-07-18T11:24:45.678092+00:00"
+  }
+]

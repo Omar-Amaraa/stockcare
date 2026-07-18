@@ -1,0 +1,87 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: stockcare-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-stockcare}
+      POSTGRES_USER: ${POSTGRES_USER:-stockcare}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stockcare}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - stockcare-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stockcare} -d ${POSTGRES_DB:-stockcare}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - stockcare
+
+  prediction-service:
+    build:
+      context: ./prediction-service
+    container_name: stockcare-prediction
+    environment:
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "${PREDICTION_PORT:-8000}:8000"
+    networks:
+      - stockcare
+
+  backend:
+    build:
+      context: ./backend
+    container_name: stockcare-backend
+    depends_on:
+      db:
+        condition: service_healthy
+      prediction-service:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-stockcare}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-stockcare}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-stockcare}
+      STOCKCARE_JWT_SECRET: ${STOCKCARE_JWT_SECRET:-change-me-in-production-please-use-a-long-random-secret-key-32b+}
+      STOCKCARE_SEED_ENABLED: ${STOCKCARE_SEED_ENABLED:-true}
+      STOCKCARE_CORS_ALLOWED_ORIGINS: ${STOCKCARE_CORS_ALLOWED_ORIGINS:-http://localhost:4200}
+      # Use the real Python model by default; falls back to no-op if the service is unreachable.
+      STOCKCARE_MODEL_PREDICTION_MODE: ${STOCKCARE_MODEL_PREDICTION_MODE:-external}
+      STOCKCARE_PREDICTION_URL: ${STOCKCARE_PREDICTION_URL:-http://prediction-service:8000}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    networks:
+      - stockcare
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: stockcare-frontend
+    depends_on:
+      - backend
+    environment:
+      BACKEND_URL: http://backend:8080
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+    networks:
+      - stockcare
+
+  adminer:
+    image: adminer:4
+    container_name: stockcare-adminer
+    depends_on:
+      - db
+    ports:
+      - "${ADMINER_PORT:-8081}:8080"
+    networks:
+      - stockcare
+    profiles:
+      - tools
+
+volumes:
+  stockcare-db-data:
+
+networks:
+  stockcare:
+    driver: bridge

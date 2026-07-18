@@ -1,0 +1,27 @@
+{
+  "horizon_H": 14,
+  "cutoff": "2025-08-01",
+  "accuracy": {
+    "LightGBM": {
+      "WMAPE": 0.0677,
+      "MAE": 14.819,
+      "bias": -1.894
+    },
+    "MovingAverage": {
+      "WMAPE": 0.0822,
+      "MAE": 18.011,
+      "bias": -2.66
+    },
+    "SeasonalNaive": {
+      "WMAPE": 0.0848,
+      "MAE": 18.564,
+      "bias": -9.769
+    }
+  },
+  "wmape_lift_vs_movingavg_pct": 17.6,
+  "business": {
+    "reactive_stockout_days": 14,
+    "forecast_stockout_days": 0,
+    "reduction_pct": 100.0
+  }
+}

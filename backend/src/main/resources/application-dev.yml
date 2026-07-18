@@ -1,0 +1,7 @@
+spring:
+  jpa:
+    show-sql: true
+logging:
+  level:
+    com.chanebplus.stockcare: DEBUG
+    org.springframework.security: INFO

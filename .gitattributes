@@ -1,0 +1,18 @@
+# Normalize line endings for text files across OSes
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Treat these as binary (no diff/merge, no eol conversion)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.ico binary
+*.jar binary
+*.parquet binary
+
+# Model artifact and data are large text blobs — keep as-is, don't diff
+prediction-service/artifacts/model.txt -diff
+prediction-service/artifacts/panel.csv -diff

@@ -1,0 +1,25 @@
+<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="StockCare">
+  <!-- eco delivery route -->
+  <path d="M5 40c0 3.5 5.5 4.6 9.5 2.8H33" stroke="#10b981" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="0.2 4.6"/>
+  <path d="M32 40.6l4 1.6-3.4 2.2z" fill="#10b981"/>
+  <!-- leaf -->
+  <path d="M7.5 20.5c-3.2-3.6-.6-9.2 4.8-9.4-.4 5-1.4 8.1-4.8 9.4z" fill="#10b981"/>
+  <!-- roof box (blue) with tape -->
+  <rect x="14" y="5.5" width="12.5" height="11" rx="1.6" fill="#1D5FD6"/>
+  <rect x="19.4" y="5.5" width="1.7" height="11" fill="#7EA8EF"/>
+  <!-- roof box (green) with cross -->
+  <rect x="27.5" y="7.5" width="9.5" height="9.5" rx="1.6" fill="#10b981"/>
+  <rect x="31.4" y="9.4" width="1.7" height="5.7" rx="0.6" fill="#fff"/>
+  <rect x="29.4" y="11.4" width="5.7" height="1.7" rx="0.6" fill="#fff"/>
+  <!-- van body -->
+  <rect x="6" y="23.5" width="26" height="12.5" rx="2.6" fill="#1D5FD6"/>
+  <!-- cabin -->
+  <path d="M32 26.5h4.6l5.4 5.2V36H32z" fill="#1D5FD6"/>
+  <rect x="34" y="28" width="5.6" height="4.1" rx="1" fill="#BCD6F7"/>
+  <!-- green cross on van -->
+  <rect x="17.4" y="26.6" width="2.2" height="7.4" rx="0.8" fill="#10b981"/>
+  <rect x="14.8" y="29.2" width="7.4" height="2.2" rx="0.8" fill="#10b981"/>
+  <!-- wheels -->
+  <circle cx="14" cy="37" r="3.6" fill="#0E3F8F"/><circle cx="14" cy="37" r="1.4" fill="#fff"/>
+  <circle cx="34" cy="37" r="3.6" fill="#0E3F8F"/><circle cx="34" cy="37" r="1.4" fill="#fff"/>
+</svg>
