@@ -392,6 +392,26 @@ public class DeliveryService {
         return DeliveryMapper.toDto(d);
     }
 
+    /**
+     * Cancels an undispatched route proposal so its requests return to the planning pool for the
+     * next fleet-wide solve. Used by the automated re-planning workflow, which runs without a
+     * security context — the caller (RouteWorkflowService) is already scoped to one depot and only
+     * hands over PLANNED (never dispatched) deliveries of that depot.
+     */
+    @Transactional
+    public void cancelForReplan(UUID id) {
+        Delivery d = deliveryRepository.findWithStopsById(id)
+                .orElseThrow(() -> NotFoundException.of("Delivery", id));
+        if (d.getStatus() != DeliveryStatus.PLANNED) {
+            // Raced with a dispatch or manual action; leave it alone.
+            return;
+        }
+        d.setStatus(DeliveryStatus.CANCELLED);
+        deliveryRepository.save(d);
+        event(d, DeliveryEventType.CANCELLED,
+                "Proposal superseded: new demand arrived, routes re-optimized fleet-wide");
+    }
+
     // -------- Queries --------
 
     @Transactional(readOnly = true)

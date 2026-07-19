@@ -184,7 +184,7 @@ min   Σ coût_km(k)·d(i,j)·x(i,j,k)     — coût de transport (1,10 DT/km, 1
 | `sla` | interpolation | pr 0,66→45 min · pr 0,06→210 min | plus prioritaire ⇒ deadline `T(i)` plus serrée |
 | `sla` | `bonus_chaine_froid_min` | −15 min | le froid resserre encore la deadline (plancher 30 min) |
 | `dechargement` | σ(i) | 3 min + 0,8 min/ligne (max 25) | temps de service par arrêt |
-| `geometrie` | sinuosité · vitesse | 1,6 · 20,9 km/h | distances Haversine calibrées sur 13 trajets TomTom réels (Sousse, 18/07/2026) |
+| `geometrie` | sinuosité · vitesse | à paliers selon la distance (voir config.json) | distances Haversine calibrées sur 13 trajets TomTom réels (Sousse, 18/07/2026) pour le palier urbain ; paliers régional/autoroute ajoutés pour couvrir tout le territoire (voir `docs/roadmap-milp-routing.md`) |
 | `flotte` | coût/km | 1,10 / 1,75 | véhicule standard / réfrigéré |
 
 **Politique d'échec : bruyante.** Contrairement à la prédiction (dégradée silencieusement en cas de panne), un échec du solveur **bloque la planification et s'affiche au dépôt** — une mauvaise tournée est pire que pas de tournée. Les demandes restent approuvées et repartent au prochain solve.
@@ -219,7 +219,19 @@ docker compose up --build          # db + backend + frontend + 2 services Python
 ```
 
 - **UI :** http://localhost:4200 · **API :** http://localhost:8080 · **Swagger :** http://localhost:8080/swagger-ui.html
-- Comptes seed : `ph.tunis@stockcare.tn` (pharmacie) · `depot@stockcare.tn` (dépôt) · mot de passe `Password123!`
+- Comptes seed (mot de passe unique : `Password123!`) :
+  - `depot@stockcare.tn` — dépôt (Depot Central Tunis)
+  - `ph.tunis@stockcare.tn` — Pharmacie Centrale Tunis (0,7 km du dépôt)
+  - `ph.ariana@stockcare.tn` — Pharmacie El Menzah, Ariana (7 km)
+  - `ph.nabeul@stockcare.tn` — Pharmacie Nabeul Centre (63 km)
+  - `ph.sousse@stockcare.tn` — Pharmacie Sousse Medina (116 km)
+  - `ph.sfax@stockcare.tn` — Pharmacie Sfax Ville (235 km)
+  - `ph.marsa@stockcare.tn` — Pharmacie La Marsa (14 km, mock)
+  - `ph.benarous@stockcare.tn` — Pharmacie Ben Arous (6 km, mock)
+  - `ph.hammamet@stockcare.tn` — Pharmacie Hammamet (55 km, mock)
+  - `admin@stockcare.tn` — admin
+
+  **Démo « vague de 8 demandes » prête à l'emploi** : le seed crée une demande **déjà priorisée** (Agent 2) pour chacune des 8 pharmacies — mélange d'urgences (CRITICAL insuline à Tunis → LOW paracétamol à Ben Arous) et de chaîne du froid (Tunis, Ariana, La Marsa). Connecté dépôt : approuvez les demandes une à une dans Requests et regardez Deliveries — chaque approbation déclenche un re-solve fleet-wide temps réel, et la proposition se réorganise sous vos yeux. Résultat attendu (vérifié avec le vrai solveur) : le camion réfrigéré prend la boucle Grand Tunis dans l'ordre des priorités (Centrale Tunis 84 → La Marsa 70 → El Menzah 67 → Ben Arous 26 en passant), le camion sec prend la boucle sud (Nabeul → Hammamet → Sousse → Sfax). Voir `docs/roadmap-milp-routing.md` pour le correctif de géométrie qui rendait Nabeul/Sousse/Sfax infaisables avant cette itération.
 
 **Scénario de démonstration (2 minutes) :**
 1. Connecté **pharmacie** : baisser un stock (ou avancer l'horloge simulée) → une carte « Proposé pour vous » apparaît → **Oui, envoyer au dépôt**.
@@ -235,6 +247,7 @@ Tout tourne en local : aucune API externe, aucune clé requise.
 | `STOCKCARE_MODEL_PREDICTION_MODE` | `external` | LightGBM réel (fallback silencieux si service injoignable) |
 | `STOCKCARE_MODEL_ROUTE_MODE` | `external` | MILP réel (échec **bruyant** si injoignable) |
 | `STOCKCARE_WORKFLOW_AUTO_ROUTE` | `true` | approbation ⇒ solve MILP automatique |
+| `STOCKCARE_WORKFLOW_AUTO_ROUTE_REPLAN` | `true` | **re-planification temps réel** : une nouvelle approbation replie les propositions en attente dans un re-solve fleet-wide unique — les tournées proposées reflètent toujours la demande complète du moment. Les livraisons déjà expédiées ne sont jamais rappelées |
 | `STOCKCARE_WORKFLOW_SHORTAGE_ACTION` | `draft` | pénurie prédite ⇒ brouillon automatique |
 | `STOCKCARE_WORKFLOW_AUTO_SUBMIT` | `false` | `true` = saute même le oui/non du pharmacien |
 | `STOCKCARE_ROUTING_TIMEOUT_MS` | `90000` | budget du solve MILP côté backend |
@@ -296,13 +309,14 @@ docker-compose.yml     Orchestration complète (le build du routing-service se f
 |---|---|---|
 | **1 — Prédiction** | Predictions reste vide après 10 s | Cliquer sur le badge rouge « FAILED » → « Retry » — LightGBM fallback à GBT NumPy maison |
 | **2 — Priorité** | Badge priorité manquant côté dépôt | Normal en MVP initial ; formule pondérée est **toujours** disponible (pas de fallback) |
-| **3 — MILP** | Bannière « FAILED » apparaît, pas de tournée proposée | **Criter critique** — les demandes restent approuvées, elles repartent au prochain solve. Dire : « Le solveur n'a pas trouvé de solution en 60 s ; on réessayera automatiquement. » |
+| **3 — MILP** | Bannière « FAILED » apparaît, pas de tournée proposée | **Critère critique** — les demandes restent approuvées, elles repartent au prochain solve. Dire : « Le solveur n'a pas trouvé de solution en 60 s ; on réessayera automatiquement. » |
 
 ---
 
 ## 7. État actuel & limitations connues
 
-- ✅ Routing-service : 16 tests verts ; solve réel vérifié de bout en bout (choix du véhicule réfrigéré pour la chaîne du froid, ordre par priorité/SLA).
+- ✅ Routing-service : 17 tests verts (dont la non-régression géométrie nationale) ; solve réel vérifié de bout en bout (choix du véhicule réfrigéré pour la chaîne du froid, ordre par priorité/SLA).
+- ✅ **Temps réel de bout en bout** : le mode `external` (vrai MILP) et `auto-route` sont maintenant les défauts *aussi hors Docker Compose* (`application.yml` pointe sur `localhost:8000/8002`) — plus de retombée silencieuse sur le routeur glouton en lançant le backend depuis l'IDE. Et avec `AUTO_ROUTE_REPLAN`, chaque nouvelle approbation re-résout toute la demande en attente en un seul solve : les propositions périmées sont automatiquement remplacées (jamais les livraisons expédiées).
 - ✅ Frontend : build de production vérifié + **refonte UI premium** avec dark mode, animations, responsive design.
 - ⚠️ Le backend Java n'a pas encore été compilé dans un environnement avec JDK/Maven — le premier `docker compose up --build` peut révéler des erreurs de compilation ou la validation Hibernate des requêtes HQL au démarrage (elles ne se voient qu'au boot).
 - ⚠️ L'agent Priorité est la formule pondérée décrite en §3.2 — le modèle RL est un branchement futur derrière la même interface.

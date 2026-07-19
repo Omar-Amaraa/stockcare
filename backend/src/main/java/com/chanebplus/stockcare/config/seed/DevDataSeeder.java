@@ -118,7 +118,15 @@ public class DevDataSeeder implements ApplicationRunner {
                 "Sousse", "Sousse", 35.8256, 10.6360);
         Pharmacy nabeul = pharmacy("PH-NAB", "Pharmacie Nabeul Centre", "PH-2025-005", "Av. Habib Thameur",
                 "Nabeul", "Nabeul", 36.4513, 10.7357);
-        List<Pharmacy> pharmacies = List.of(tunis, ariana, sfax, sousse, nabeul);
+        // Mock pharmacies (plausible but not surveyed locations) so the depot demo has a
+        // 7-8 stop wave and the MILP visibly chooses a multi-stop trajectory.
+        Pharmacy marsa = pharmacy("PH-MAR", "Pharmacie La Marsa", "PH-2025-006", "Av. de la Corniche",
+                "Tunis", "La Marsa", 36.8782, 10.3247);
+        Pharmacy benarous = pharmacy("PH-BEN", "Pharmacie Ben Arous", "PH-2025-007", "Rue de la Republique",
+                "Ben Arous", "Ben Arous", 36.7531, 10.2189);
+        Pharmacy hammamet = pharmacy("PH-HAM", "Pharmacie Hammamet", "PH-2025-008", "Av. Habib Bourguiba",
+                "Nabeul", "Hammamet", 36.4000, 10.6167);
+        List<Pharmacy> pharmacies = List.of(tunis, ariana, sfax, sousse, nabeul, marsa, benarous, hammamet);
         pharmacies.forEach(p -> link(depot, p));
 
         user("admin@stockcare.tn", "StockCare Admin", Role.ADMIN, null, null);
@@ -128,6 +136,9 @@ public class DevDataSeeder implements ApplicationRunner {
         user("ph.sfax@stockcare.tn", "Pharmacien Sfax", Role.PHARMACY, sfax, null);
         user("ph.sousse@stockcare.tn", "Pharmacien Sousse", Role.PHARMACY, sousse, null);
         user("ph.nabeul@stockcare.tn", "Pharmacien Nabeul", Role.PHARMACY, nabeul, null);
+        user("ph.marsa@stockcare.tn", "Pharmacien La Marsa", Role.PHARMACY, marsa, null);
+        user("ph.benarous@stockcare.tn", "Pharmacien Ben Arous", Role.PHARMACY, benarous, null);
+        user("ph.hammamet@stockcare.tn", "Pharmacien Hammamet", Role.PHARMACY, hammamet, null);
 
         Map<String, Medication> meds = seedMedications();
 
@@ -156,21 +167,26 @@ public class DevDataSeeder implements ApplicationRunner {
         // Seed simulated predictions for Tunis so the dashboard and draft-from-prediction work.
         seedPredictions(tunis);
 
-        // Sample requests
-        PharmacyRequest sfaxReq = request(sfax, depot, Urgency.HIGH, RequestStatus.SUBMITTED,
-                "Rupture amoxicilline, forte demande", 30,
-                item(meds.get("AMOX500"), 300, "Restock urgent"));
-        sfaxReq.setSubmittedAt(clock.now());
-        requestRepository.save(sfaxReq);
-
-        PharmacyRequest tunisReq = request(tunis, depot, Urgency.CRITICAL, RequestStatus.SUBMITTED,
-                "Insuline patients chroniques", 45,
+        // Sample requests: one per pharmacy, already prioritized, so the depot can approve the
+        // whole wave and watch the MILP pick a trajectory across all 8 stops in one solve.
+        // Quantities are sized to fit the seeded fleet: cold-chain total (60+30+20=110) fits the
+        // 150u refrigerated VH-02; dry total (120+40+25+35+30=250) fits the 300u VH-01.
+        seedPrioritizedRequest(sfax, depot, Urgency.HIGH, "Rupture amoxicilline, forte demande", 30,
+                item(meds.get("AMOX500"), 120, "Restock urgent"));
+        seedPrioritizedRequest(tunis, depot, Urgency.CRITICAL, "Insuline patients chroniques", 45,
                 item(meds.get("INSGLA"), 60, "Chaine du froid"));
-        tunisReq.setSubmittedAt(clock.now());
-        tunisReq = requestRepository.save(tunisReq);
-        priorityService.calculateFor(tunisReq);
-        tunisReq.setStatus(RequestStatus.PRIORITIZED);
-        requestRepository.save(tunisReq);
+        seedPrioritizedRequest(ariana, depot, Urgency.HIGH, "Enoxaparine stock bas", 20,
+                item(meds.get("ENOX40"), 30, "Chaine du froid"));
+        seedPrioritizedRequest(sousse, depot, Urgency.NORMAL, "Metformine renouvellements chroniques", 25,
+                item(meds.get("METF850"), 40, null));
+        seedPrioritizedRequest(nabeul, depot, Urgency.HIGH, "Salbutamol saison asthme", 18,
+                item(meds.get("SALB100"), 25, null));
+        seedPrioritizedRequest(marsa, depot, Urgency.HIGH, "Campagne vaccination grippe", 40,
+                item(meds.get("VACFLU"), 20, "Chaine du froid"));
+        seedPrioritizedRequest(benarous, depot, Urgency.LOW, "Reassort antalgiques", 10,
+                item(meds.get("PARA500"), 35, null));
+        seedPrioritizedRequest(hammamet, depot, Urgency.NORMAL, "Ceftriaxone service infirmier", 15,
+                item(meds.get("CEFT1G"), 30, null));
 
         log.info("Seed complete: 1 depot, {} pharmacies, {} medications, sample inventory/requests.",
                 pharmacies.size(), meds.size());
@@ -250,6 +266,21 @@ public class DevDataSeeder implements ApplicationRunner {
         PharmacyRequestItem it = new PharmacyRequestItem();
         it.setMedication(m); it.setRequestedQuantity(qty); it.setNote(note);
         return it;
+    }
+
+    /**
+     * Seeds a request in PRIORITIZED state — submitted, priority coefficient computed — i.e.
+     * exactly where the live workflow leaves a request once the pharmacist said yes. The depot
+     * only has to approve it, which triggers the automatic fleet-wide MILP solve.
+     */
+    private void seedPrioritizedRequest(Pharmacy pharmacy, Depot depot, Urgency urgency, String notes,
+                                        Integer patients, PharmacyRequestItem... items) {
+        PharmacyRequest r = request(pharmacy, depot, urgency, RequestStatus.SUBMITTED, notes, patients, items);
+        r.setSubmittedAt(clock.now());
+        r = requestRepository.save(r);
+        priorityService.calculateFor(r);
+        r.setStatus(RequestStatus.PRIORITIZED);
+        requestRepository.save(r);
     }
 
     private PharmacyRequest request(Pharmacy pharmacy, Depot depot, Urgency urgency, RequestStatus status,

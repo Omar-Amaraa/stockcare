@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional
 import milp_path  # noqa: F401  — puts the MILP sources on sys.path
 
 from demandes import fenetre_sla, temps_service          # noqa: E402
-from geometrie import build_matrix_calibrated            # noqa: E402
+from geometrie import build_matrix_calibrated, build_matrix_tiered  # noqa: E402
 from vrp_milp_pharma import (                            # noqa: E402
     Fleet, Scenario, build_and_solve_vrp,
 )
@@ -166,11 +166,20 @@ def build_problem(payload: Dict[str, Any], cfg: Dict[str, Any]) -> BuiltProblem:
 
     fleet = Fleet(Q=Q, R=R, c_f=c_f)
 
-    d, t = build_matrix_calibrated(
-        coords,
-        sinuosite=cfg_geo["facteur_sinuosite"],
-        vitesse_kmh=cfg_geo["vitesse_effective_kmh"],
-    )
+    if "paliers" in cfg_geo:
+        # Distance-tiered speed/sinuosity: keeps the real TomTom urban calibration for
+        # nearby stops, but no longer applies it to depot<->pharmacy pairs hundreds of
+        # km apart (see geometrie.build_matrix_tiered for why the flat factor broke
+        # nationwide routing).
+        d, t = build_matrix_tiered(coords, paliers=cfg_geo["paliers"])
+    else:
+        # Legacy path: a single flat factor everywhere (fine only for a tight local
+        # cluster, e.g. the milp_care_delivery Sousse demo).
+        d, t = build_matrix_calibrated(
+            coords,
+            sinuosite=cfg_geo["facteur_sinuosite"],
+            vitesse_kmh=cfg_geo["vitesse_effective_kmh"],
+        )
     return BuiltProblem(scenario, fleet, d, t, stop_refs, vehicle_refs)
 
 

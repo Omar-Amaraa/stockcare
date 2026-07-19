@@ -72,6 +72,9 @@ services:
       # Close the loop: approval -> MILP solve -> deliveries, with no manual planning step.
       STOCKCARE_WORKFLOW_AUTO_ROUTE: ${STOCKCARE_WORKFLOW_AUTO_ROUTE:-true}
       STOCKCARE_WORKFLOW_AUTO_ROUTE_MIN_REQUESTS: ${STOCKCARE_WORKFLOW_AUTO_ROUTE_MIN_REQUESTS:-1}
+      # Real-time re-planning: new approvals supersede pending proposals and trigger one
+      # fleet-wide re-solve, so proposed routes always reflect the full current demand.
+      STOCKCARE_WORKFLOW_AUTO_ROUTE_REPLAN: ${STOCKCARE_WORKFLOW_AUTO_ROUTE_REPLAN:-true}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     networks:

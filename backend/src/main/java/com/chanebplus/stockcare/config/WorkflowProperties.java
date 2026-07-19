@@ -15,9 +15,16 @@ public class WorkflowProperties {
     /** If true, priority is (re)calculated automatically through the request lifecycle. */
     private boolean autoPriority = true;
     /** If true, approving requests for planning automatically triggers a fleet-wide MILP solve. */
-    private boolean autoRoute = false;
+    private boolean autoRoute = true;
     /** Minimum number of approved, unplanned requests before automatic planning fires. */
     private int autoRouteMinRequests = 1;
+    /**
+     * If true, a new approval arriving while route proposals are still awaiting the depot's
+     * decision folds those proposals into a fresh fleet-wide solve (they are cancelled only once
+     * the new solve succeeds), so the proposed routes always reflect the complete current demand.
+     * Dispatched deliveries (STARTED and beyond) are never touched.
+     */
+    private boolean autoRouteReplan = true;
 
     public String getShortageAction() { return shortageAction; }
     public void setShortageAction(String shortageAction) { this.shortageAction = shortageAction; }
@@ -29,4 +36,6 @@ public class WorkflowProperties {
     public void setAutoRoute(boolean autoRoute) { this.autoRoute = autoRoute; }
     public int getAutoRouteMinRequests() { return autoRouteMinRequests; }
     public void setAutoRouteMinRequests(int autoRouteMinRequests) { this.autoRouteMinRequests = autoRouteMinRequests; }
+    public boolean isAutoRouteReplan() { return autoRouteReplan; }
+    public void setAutoRouteReplan(boolean autoRouteReplan) { this.autoRouteReplan = autoRouteReplan; }
 }

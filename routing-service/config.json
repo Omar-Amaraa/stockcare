@@ -28,9 +28,17 @@
   },
 
   "geometrie": {
-    "_comment": "TomTom calibration on 13 real Sousse trips, 18/07/2026.",
-    "facteur_sinuosite": 1.6,
-    "vitesse_effective_kmh": 20.9
+    "_comment": "Distance-tiered speed/sinuosity so a single depot can reach pharmacies across Tunisia, not just its own city. The <15km tier is the real TomTom calibration (13 Sousse trips, 18/07/2026, sinuosity 1.6, 20.9km/h); it stays untouched for local/urban stops. Beyond that, a single national factor was wildly wrong (e.g. Tunis->Sfax haversine ~235km x1.6 / 20.9km/h => ~18h, vs H_max=480min => every stop past ~50km was structurally unroutable). Regional and highway tiers below are literature-typical Tunisian road averages (regional roads ~50-60km/h, autoroute/RN with town crossings ~80-90km/h), pending real calibration once build_matrix_from_tomtom (geometrie.py) or an OSRM instance is wired in.",
+    "paliers": [
+      { "distance_max_km": 15, "sinuosite": 1.6, "vitesse_kmh": 20.9, "_label": "urbain (calibre TomTom)" },
+      { "distance_max_km": 60, "sinuosite": 1.35, "vitesse_kmh": 55.0, "_label": "peri-urbain / regional" },
+      { "distance_max_km": null, "sinuosite": 1.2, "vitesse_kmh": 85.0, "_label": "route nationale / autoroute" }
+    ],
+    "_legacy_flat_fallback": {
+      "_comment": "Kept only for tooling that still calls build_matrix_calibrated() directly with a flat factor (e.g. milp_care_delivery/scenarios.py, which only ever runs on a tight Sousse cluster).",
+      "facteur_sinuosite": 1.6,
+      "vitesse_effective_kmh": 20.9
+    }
   },
 
   "flotte": {

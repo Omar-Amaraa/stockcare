@@ -3,6 +3,8 @@ package com.chanebplus.stockcare.modules.route.workflow;
 import com.chanebplus.stockcare.common.stream.WorkflowBroadcaster;
 import com.chanebplus.stockcare.common.stream.WorkflowUpdate;
 import com.chanebplus.stockcare.config.WorkflowProperties;
+import com.chanebplus.stockcare.modules.delivery.domain.Delivery;
+import com.chanebplus.stockcare.modules.delivery.domain.DeliveryStatus;
 import com.chanebplus.stockcare.modules.delivery.dto.FleetPlanRequest;
 import com.chanebplus.stockcare.modules.delivery.dto.FleetPlanResult;
 import com.chanebplus.stockcare.modules.delivery.repo.DeliveryRepository;
@@ -14,6 +16,7 @@ import com.chanebplus.stockcare.modules.request.domain.RequestStatus;
 import com.chanebplus.stockcare.modules.request.repo.PharmacyRequestRepository;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -91,16 +94,40 @@ public class RouteWorkflowService {
             return;
         }
 
-        emit(depotId, "OPTIMIZING", "Optimizing delivery routes for " + pending.size() + " request(s)…");
+        // Real-time re-planning: if proposals are still awaiting the depot's decision when new
+        // demand arrives, they describe an outdated picture. Fold their requests back into this
+        // solve so the MILP re-optimizes the union of old + new demand fleet-wide, then retire
+        // the superseded proposals — but only AFTER the new solve succeeds, so an unreachable
+        // optimizer never leaves the depot with nothing. Dispatched deliveries are untouched:
+        // a truck already on the road is a commitment, not a proposal.
+        List<Delivery> superseded = List.of();
+        if (workflow.isAutoRouteReplan()) {
+            superseded = deliveryRepository.findByDepotIdAndStatus(depotId, DeliveryStatus.PLANNED);
+            if (!superseded.isEmpty()) {
+                Set<UUID> union = new LinkedHashSet<>(pending);
+                union.addAll(deliveryRepository.findProposalRequestIds(depotId));
+                pending = new ArrayList<>(union);
+                log.info("Auto-route depot {}: folding {} pending proposal(s) into the re-solve, "
+                        + "{} request(s) total", depotId, superseded.size(), pending.size());
+            }
+        }
+
+        emit(depotId, "OPTIMIZING", superseded.isEmpty()
+                ? "Optimizing delivery routes for " + pending.size() + " request(s)…"
+                : "New demand arrived — re-optimizing all routes for " + pending.size() + " request(s)…");
         try {
             FleetPlanResult result = deliveryService.plan(depotId,
                     new FleetPlanRequest(pending, List.<UUID>of(), List.<UUID>of(), null));
+
+            // The new fleet-wide plan covers everything; the superseded proposals can go now.
+            for (Delivery proposal : superseded) {
+                deliveryService.cancelForReplan(proposal.getId());
+            }
 
             emit(depotId, "PLANNED", result.deliveries().size() + " delivery route(s) planned automatically");
             log.info("Auto-route depot {}: {} delivery(ies), status={}, unfulfilled={}",
                     depotId, result.deliveries().size(), result.status(),
                     result.unfulfilledRequestIds().size());
-
             if (!result.unfulfilledRequestIds().isEmpty()) {
                 notifications.notifyDepot(depotId, NotificationType.ROUTE_PLANNED,
                         "Some requests could not be loaded",

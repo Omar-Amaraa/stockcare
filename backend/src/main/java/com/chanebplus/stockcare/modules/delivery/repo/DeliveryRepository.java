@@ -17,6 +17,9 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
 
     List<Delivery> findByDepotIdOrderByCreatedAtDesc(UUID depotId);
 
+    /** Route proposals of a depot in a given state — e.g. PLANNED = awaiting the depot's decision. */
+    List<Delivery> findByDepotIdAndStatus(UUID depotId, DeliveryStatus status);
+
     List<Delivery> findByStatusIn(List<DeliveryStatus> statuses);
 
     @Query("""
@@ -37,4 +40,15 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
               and d.status <> com.chanebplus.stockcare.modules.delivery.domain.DeliveryStatus.CANCELLED
             """)
     List<UUID> findPlannedRequestIds(@Param("depotId") UUID depotId);
+
+    /**
+     * Requests carried by route proposals still awaiting the depot's decision (status PLANNED).
+     * The real-time re-planning workflow folds these back into the next fleet-wide solve.
+     */
+    @Query("""
+            select distinct i.requestId from Delivery d join d.items i
+            where d.depot.id = :depotId
+              and d.status = com.chanebplus.stockcare.modules.delivery.domain.DeliveryStatus.PLANNED
+            """)
+    List<UUID> findProposalRequestIds(@Param("depotId") UUID depotId);
 }
