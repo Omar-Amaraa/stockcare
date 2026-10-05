@@ -2,7 +2,7 @@
 
 **Team Chaneb+ · Team lead: Omar Amara · Automate or Die hackathon, July 2026**
 
-> 🥉 **3rd place out of 100 teams** at the **Automate or Die** hackathon (IEEE Tunisia Section, Enactus FPHM, CJD, ATUGE, ATIA). We pitched StockCare in front of government ministers. [See below](#the-hackathon).
+> **3rd place out of 100 teams** at the **Automate or Die** hackathon (IEEE Tunisia Section, Enactus FPHM, CJD, ATUGE, ATIA). We pitched StockCare in front of government ministers. [See below](#the-hackathon).
 
 StockCare closes the loop between pharmacies and their supply depot. It **detects medicine shortages before they happen**, **drafts the restock request itself**, **ranks every request by clinical priority**, **builds the optimal delivery routes** (respecting the cold chain) and **tracks the trucks in real time**. People only validate: the pharmacist answers *yes / no* to a proposed request, and the depot answers *approve / refuse* to a proposed route.
 
@@ -17,7 +17,7 @@ It is built from three decision engines plus the web platform that ties them tog
 | **Route optimization** | *Which truck goes where, in which order, keeping the cold chain?* | Vehicle Routing Problem solved as a MILP (PuLP / CBC) | [`route-optimization/`](route-optimization) |
 | Web platform | Workflow, validations, live tracking | Spring Boot 3.3 + Angular 18 + PostgreSQL | [`backend/`](backend), [`frontend/`](frontend) |
 
-📁 **Data room:** [`Data_Room/`](Data_Room): the technical write-up of each engine, the hackathon specification and the datasets.
+**Data room:** [`Data_Room/`](Data_Room): the technical write-up of each engine, the hackathon specification and the datasets.
 
 ---
 
@@ -39,8 +39,16 @@ It is built from three decision engines plus the web platform that ties them tog
 
 StockCare was built by **team Chaneb+**, led by **Omar Amara**, for the **Automate or Die** hackathon (July 2026), organized by IEEE Tunisia Section, Enactus FPHM, CJD Tunis Horizon, ATUGE and ATIA.
 
-- 🥉 **3rd place out of 100 teams**
-- 🎤 Final pitch in front of **government ministers**, partners and the jury
+- **3rd place out of 100 teams**
+- Final pitch in front of **government ministers**, partners and the jury
+
+### Team and roles
+
+| Member | Role |
+|---|---|
+| **Omar Amara** | Team lead: coordinated the team and the pitch, and integrated the three engines into the platform (backend, frontend, Docker setup) |
+| **Mohamed Aziz Ncir** | Priority engine: AMM registry pipeline, criticality model, PPO reinforcement-learning agent and scoring API |
+| **Adam** | Route optimization: the VRP-MILP solver (cold chain, deadlines, fleet choice) |
 
 <p align="center">
   <img src="docs/images/hackathon_certificate.jpg" width="620" alt="Automate or Die certificate of participation awarded to team Chaneb+, 21 July 2026">
@@ -63,13 +71,13 @@ StockCare was built by **team Chaneb+**, led by **Omar Amara**, for the **Automa
 
 ```mermaid
 flowchart LR
-    STOCK["Pharmacy stock<br/>(sales, adjustments)"] --> F["🔮 Demand forecasting<br/>LightGBM · :8000"]
-    F -->|"shortage ⇒ draft request"| PH{{"👤 Pharmacist<br/>yes / no"}}
-    PH -->|yes| P["⚖️ Priority engine<br/>score 0–1"]
-    P --> DEP{{"👤 Depot<br/>approve request"}}
-    DEP --> R["🗺️ Route optimization<br/>VRP-MILP · :8002"]
-    R -->|"proposed routes"| DEP2{{"👤 Depot<br/>approve route"}}
-    DEP2 --> T["🚚 Live tracking (SSE)<br/>pharmacy + depot"]
+    STOCK["Pharmacy stock<br/>(sales, adjustments)"] --> F["Demand forecasting<br/>LightGBM · :8000"]
+    F -->|"shortage ⇒ draft request"| PH{{"Pharmacist<br/>yes / no"}}
+    PH -->|yes| P["Priority engine<br/>score 0–1"]
+    P --> DEP{{"Depot<br/>approve request"}}
+    DEP --> R["Route optimization<br/>VRP-MILP · :8002"]
+    R -->|"proposed routes"| DEP2{{"Depot<br/>approve route"}}
+    DEP2 --> T["Live tracking (SSE)<br/>pharmacy + depot"]
 ```
 
 Every arrow is automatic: the backend reacts to events (stock change, simulated time advancing, a "yes", an approval) and calls the next engine by itself.
@@ -78,7 +86,7 @@ Every arrow is automatic: the backend reacts to events (stock change, simulated 
 
 ## 1. Demand forecasting
 
-📄 [Full technical write-up](Data_Room/demand_forecasting_overview.pdf)
+[Full technical write-up](Data_Room/demand_forecasting_overview.pdf)
 
 Pharmacies that reorder only when the shelf is nearly empty run out regularly, because the supplier lead time is longer than what is left on the shelf. This engine replaces that reactive behaviour with an anticipative one.
 
@@ -174,7 +182,7 @@ LightGBM cuts the error by **17.6 %** compared with the best baseline.
 
 ## 2. Priority engine
 
-📄 [Full technical write-up](Data_Room/priority_engine_overview.pdf)
+[Full technical write-up](Data_Room/priority_engine_overview.pdf)
 
 When depot capacity is scarce, this engine decides which requests go first. It turns the Tunisian medicine registry (DPM AMM: 6,058 products, 1,088 active ingredients, or DCI) into a normalized priority score.
 
@@ -235,7 +243,7 @@ PPO improves the overall reward and critical delays, but the saved policy serves
 
 ## 3. Route optimization
 
-📄 [Full technical write-up](Data_Room/route_optimization_overview.pdf)
+[Full technical write-up](Data_Room/route_optimization_overview.pdf)
 
 Once requests are approved, the depot sends **all approved requests and the whole active fleet in a single solve**. The model chooses which trucks to use, which pharmacies each truck serves, and in which order. Nobody picks a truck by hand.
 
@@ -370,11 +378,11 @@ uvicorn src.api.priority_service:app --port 8001
 
 ## Status and limitations
 
-- ✅ Tests pass: demand forecasting (45), MILP solver (53), routing API (17).
-- ✅ Real end-to-end routing: refrigerated truck chosen for cold-chain orders, stops ordered by priority and deadline, pharmacies up to Sfax (235 km) routable thanks to the distance tiers.
-- ⚠️ **The priority engine is not plugged into the platform yet.** The backend currently computes priority with a fixed weighted formula behind the same interface (`PriorityCalculationService`). The PPO service is ready to replace it in `external` mode.
-- ⚠️ All forecasting and priority results come from simulated data (digital twin), not from real pharmacy transactions.
-- ⚠️ GPS tracking is simulated (interpolation along the route).
-- ⚠️ Deadlines are calibrated for urban distances; long national trips are routable but show honest lateness.
+- Tests pass: demand forecasting (45), MILP solver (53), routing API (17).
+- Real end-to-end routing: refrigerated truck chosen for cold-chain orders, stops ordered by priority and deadline, pharmacies up to Sfax (235 km) routable thanks to the distance tiers.
+- **The priority engine is not plugged into the platform yet.** The backend currently computes priority with a fixed weighted formula behind the same interface (`PriorityCalculationService`). The PPO service is ready to replace it in `external` mode.
+- All forecasting and priority results come from simulated data (digital twin), not from real pharmacy transactions.
+- GPS tracking is simulated (interpolation along the route).
+- Deadlines are calibrated for urban distances; long national trips are routable but show honest lateness.
 
 The priority engine was developed in [`mohamedazizncir/layer2_hackathon`](https://github.com/mohamedazizncir/layer2_hackathon) and is included here so that the whole system lives in one repository.
