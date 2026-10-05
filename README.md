@@ -46,9 +46,11 @@ StockCare was built by **team Chaneb+**, led by **Omar Amara**, for the **Automa
 
 | Member | Role |
 |---|---|
-| **Omar Amara** | Team lead: coordinated the team and the pitch, and integrated the three engines into the platform (backend, frontend, Docker setup) |
+| **Omar Amara** | Team lead: coordinated the team and the pitch, built the route optimization (VRP-MILP) with Adam, and integrated the three engines into the platform (backend, frontend, Docker setup) |
+| **Adam Halaoua** | Route optimization: the VRP-MILP solver (cold chain, deadlines, fleet choice), with Omar |
 | **Mohamed Aziz Ncir** | Priority engine: AMM registry pipeline, criticality model, PPO reinforcement-learning agent and scoring API |
-| **Adam** | Route optimization: the VRP-MILP solver (cold chain, deadlines, fleet choice) |
+| **Malek** | Business side: business model and business plan |
+| **Mounib Halouani** | Business plan with Malek, and pharmaceutical logistics expertise as a pharmacy student |
 
 <p align="center">
   <img src="docs/images/hackathon_certificate.jpg" width="620" alt="Automate or Die certificate of participation awarded to team Chaneb+, 21 July 2026">
