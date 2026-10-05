@@ -1,6 +1,8 @@
 # StockCare: Predictive and Automated Pharmaceutical Distribution
 
-**Team Chaneb+ · Hackathon project, July 2026**
+**Team Chaneb+ · Team lead: Omar Amara · Automate or Die hackathon, July 2026**
+
+> 🥉 **3rd place out of 100 teams** at the **Automate or Die** hackathon (IEEE Tunisia Section, Enactus FPHM, CJD, ATUGE, ATIA). We pitched StockCare in front of government ministers. [See below](#the-hackathon).
 
 StockCare closes the loop between pharmacies and their supply depot. It **detects medicine shortages before they happen**, **drafts the restock request itself**, **ranks every request by clinical priority**, **builds the optimal delivery routes** (respecting the cold chain) and **tracks the trucks in real time**. People only validate: the pharmacist answers *yes / no* to a proposed request, and the depot answers *approve / refuse* to a proposed route.
 
@@ -21,14 +23,39 @@ It is built from three decision engines plus the web platform that ties them tog
 
 ## Contents
 
-1. [How the pieces fit together](#how-the-pieces-fit-together)
-2. [Demand forecasting](#1-demand-forecasting)
-3. [Priority engine](#2-priority-engine)
-4. [Route optimization](#3-route-optimization)
-5. [The platform and its workflow](#the-platform-and-its-workflow)
-6. [Repository layout](#repository-layout)
-7. [Getting started](#getting-started)
-8. [Status and limitations](#status-and-limitations)
+1. [The hackathon](#the-hackathon)
+2. [How the pieces fit together](#how-the-pieces-fit-together)
+3. [Demand forecasting](#1-demand-forecasting)
+4. [Priority engine](#2-priority-engine)
+5. [Route optimization](#3-route-optimization)
+6. [The platform and its workflow](#the-platform-and-its-workflow)
+7. [Repository layout](#repository-layout)
+8. [Getting started](#getting-started)
+9. [Status and limitations](#status-and-limitations)
+
+---
+
+## The hackathon
+
+StockCare was built by **team Chaneb+**, led by **Omar Amara**, for the **Automate or Die** hackathon (July 2026), organized by IEEE Tunisia Section, Enactus FPHM, CJD Tunis Horizon, ATUGE and ATIA.
+
+- 🥉 **3rd place out of 100 teams**
+- 🎤 Final pitch in front of **government ministers**, partners and the jury
+
+<p align="center">
+  <img src="docs/images/hackathon_certificate.jpg" width="620" alt="Automate or Die certificate of participation awarded to team Chaneb+, 21 July 2026">
+</p>
+
+<table>
+  <tr>
+    <td width="58%"><img src="docs/images/hackathon_team_on_stage.jpg" alt="Team Chaneb+ on stage in front of the StockCare slide"></td>
+    <td width="42%"><img src="docs/images/hackathon_pitch.jpg" alt="Pitching the StockCare general architecture on stage"></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Team Chaneb+ on stage after the final pitch.</em></td>
+    <td align="center"><em>Presenting the general architecture of StockCare.</em></td>
+  </tr>
+</table>
 
 ---
 
