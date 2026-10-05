@@ -1,323 +1,353 @@
-# StockCare — Réseau de distribution pharmaceutique prédictif et automatisé
+# StockCare: Predictive and Automated Pharmaceutical Distribution
 
-**Team Chaneb+** · Prédiction de pénuries → Priorisation des médicaments → Optimisation MILP des tournées → Suivi temps réel.
+**Team Chaneb+ · Hackathon project, July 2026**
 
-StockCare ferme la boucle complète entre les pharmacies et le dépôt : le système **détecte les pénuries avant qu'elles n'arrivent**, **rédige lui-même les demandes**, **calcule la priorité de chaque médicament**, **construit les tournées optimales de livraison** et **suit les véhicules en temps réel**. Aucun humain ne prend de décision opérationnelle : les deux seules interactions humaines du système sont des validations **oui / non**.
+StockCare closes the loop between pharmacies and their supply depot. It **detects medicine shortages before they happen**, **drafts the restock request itself**, **ranks every request by clinical priority**, **builds the optimal delivery routes** (respecting the cold chain) and **tracks the trucks in real time**. People only validate: the pharmacist answers *yes / no* to a proposed request, and the depot answers *approve / refuse* to a proposed route.
 
-> **Philosophie du workflow** : *l'humain approuve, la machine décide.*
-> - Le pharmacien ne choisit ni le médicament, ni la quantité, ni l'urgence → il répond **oui/non** à une proposition.
-> - Le dépôt ne choisit ni le véhicule, ni l'ordre des arrêts, ni l'affectation → il répond **approuver/refuser** à une tournée proposée par le MILP.
+> *The human approves, the machine decides.*
 
----
+It is built from three decision engines plus the web platform that ties them together:
 
-## 1. Vue d'ensemble de l'architecture
-
-```mermaid
-flowchart LR
-    subgraph Frontend["Frontend Angular :4200"]
-        UI_PH["Interface Pharmacie<br/>(propositions oui/non, tracking)"]
-        UI_DEP["Interface Dépôt<br/>(tournées proposées, carte live)"]
-    end
-
-    subgraph Backend["Backend Spring Boot :8080"]
-        WF["Moteur de workflow<br/>(événements asynchrones)"]
-        SSE["Flux SSE temps réel<br/>(/api/stream, /api/tracking)"]
-        SIM["Simulateur GPS<br/>(tick 2 s)"]
-    end
-
-    subgraph Agents["Agents décisionnels (Python)"]
-        PRED["Agent 1 — Prédiction<br/>LightGBM :8000"]
-        PRIO["Agent 2 — Priorité<br/>(formule pondérée, hook RL)"]
-        MILP["Agent 3 — Routage<br/>MILP CBC/PuLP :8002"]
-    end
-
-    DB[("PostgreSQL 16")]
-
-    UI_PH <--> Backend
-    UI_DEP <--> Backend
-    Backend <--> DB
-    WF -->|"HTTP /predict"| PRED
-    WF -->|"in-process"| PRIO
-    WF -->|"HTTP /optimize"| MILP
-    SIM --> SSE
-```
-
-| Service | Port | Rôle |
-|---|---|---|
-| `frontend` | 4200 | Angular 18 + Tailwind + Leaflet (cartes live) |
-| `backend` | 8080 | Spring Boot 3.3 / Java 21 — workflow, API, SSE, simulateur GPS |
-| `prediction-service` | 8000 | Python — LightGBM (fallback GBT NumPy) pour la prévision de demande |
-| `routing-service` | 8002 | Python — enveloppe FastAPI autour du solveur **milp_care** (VRP-MILP, CBC) |
-| `db` | 5432 | PostgreSQL 16 + Flyway |
-| `adminer` (optionnel) | 8081 | Console SQL (`--profile tools`) |
-
----
-
-## 2. Le workflow exact, de bout en bout
-
-Chaîne complète : **8 étapes automatiques, 2 validations humaines.**
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant STK as Stock pharmacie
-    participant PRED as Agent 1<br/>Prédiction (LightGBM)
-    participant WF as Workflow backend
-    participant PH as 👤 Pharmacien
-    participant PRIO as Agent 2<br/>Priorité
-    participant DEP as 👤 Dépôt
-    participant MILP as Agent 3<br/>MILP (CBC)
-    participant SIM as Simulateur GPS
-
-    STK->>WF: Mouvement de stock (vente, ajustement, avance du temps simulé)
-    WF->>PRED: /predict — consommation & date de rupture par médicament
-    PRED-->>WF: pénuries prédites (date, quantité manquante, jours restants)
-    WF->>WF: Auto-rédaction du brouillon de demande<br/>(médicament, quantité = manque prédit,<br/>urgence = f(jours restants))
-    WF-->>PH: 💬 « Le stock de X va s'épuiser — envoyer 40 unités au dépôt ? »
-    PH->>WF: ✅ OUI (ou ❌ non — reproposé si la pénurie persiste)
-    WF->>PRIO: Calcul automatique de la priorité (0–100)
-    PRIO-->>WF: coefficient + facteurs explicables
-    WF-->>DEP: Demande priorisée dans la file du dépôt
-    DEP->>WF: ✅ Approuver la demande (ou ❌ rejeter)
-    WF->>MILP: Solve fleet-wide automatique :<br/>TOUTES les demandes approuvées + TOUTE la flotte
-    MILP-->>WF: tournées optimales (véhicules choisis, ordre des arrêts, ETA)
-    WF-->>DEP: 💬 Tournée proposée sur carte : « Approuver & expédier ? »
-    DEP->>WF: ✅ Approuver (ou ❌ refuser — demandes remises au pot commun)
-    WF->>SIM: Départ du véhicule
-    SIM-->>PH: 🚚 Camion visible en temps réel sur la carte (SSE)
-    SIM-->>DEP: 🚚 Même suivi côté dépôt + notifications d'approche/livraison
-```
-
-Détail des déclencheurs automatiques (événements Spring, asynchrones, après commit) :
-
-| Événement | Déclenché par | Action automatique |
-|---|---|---|
-| `InventoryChanged` | toute écriture de stock | relance la prédiction de la pharmacie |
-| `SimulatedTimeChanged` | horloge simulée avancée | relance la prédiction de **toutes** les pharmacies |
-| `ShortagePredicted` | l'agent de prédiction | auto-rédige les brouillons de demande (anti-doublon par médicament) |
-| `RequestSubmitted` | le « oui » du pharmacien | calcul automatique de la priorité |
-| `RequestApprovedForPlanning` | le « approuver » du dépôt | **solve MILP fleet-wide** de tout l'arriéré approuvé du dépôt (verrou par dépôt, les vagues d'approbations fusionnent en un seul solve) |
-
----
-
-## 3. Les trois agents décisionnels
-
-```mermaid
-flowchart TB
-    subgraph A1["🔮 Agent 1 — Prédiction de pénuries (prediction-service)"]
-        direction TB
-        A1_IN["Entrées : historique de consommation, stock courant,<br/>catégorie du médicament, saisonnalité, date de décision"]
-        A1_M["Modèle : LightGBM (gradient boosting)<br/>fallback : GBT NumPy maison si le booster est absent"]
-        A1_OUT["Sorties par médicament :<br/>• date de rupture prédite<br/>• quantité manquante prédite<br/>• jours de stock restants (horizon 14 j)"]
-        A1_IN --> A1_M --> A1_OUT
-    end
-
-    subgraph A2["⚖️ Agent 2 — Priorité des médicaments (backend, hook RL)"]
-        direction TB
-        A2_IN["Entrées : urgence, criticité du médicament,<br/>chaîne du froid, volume, patients affectés, âge de la demande"]
-        A2_M["Implémentation actuelle : formule pondérée déterministe et auditable<br/>Cible : modèle **Reinforcement Learning** branché via<br/>ExternalPriorityCalculationService (même interface, zéro refactor)"]
-        A2_OUT["Sortie : coefficient 0–100 + facteurs détaillés + explication"]
-        A2_IN --> A2_M --> A2_OUT
-    end
-
-    subgraph A3["🗺️ Agent 3 — Optimisation des tournées (routing-service / milp_care)"]
-        direction TB
-        A3_IN["Entrées : dépôt (lat/lon), arrêts (lat/lon, priorité, unités,<br/>froid, lignes), flotte (capacité, réfrigéré)"]
-        A3_M["VRP-MILP résolu par CBC (PuLP)<br/>SLA dérivés de la priorité, matrice calibrée TomTom"]
-        A3_OUT["Sortie : tournées par véhicule (ordre, ETA/arrêt,<br/>retard SLA, km, durée), demandes non servies"]
-        A3_IN --> A3_M --> A3_OUT
-    end
-
-    A1_OUT -.->|"pénurie ⇒ demande auto<br/>+ 👤 oui/non pharmacien"| A2_IN
-    A2_OUT -.->|"priorité ⇒ poids objectif & SLA<br/>+ 👤 approbation dépôt"| A3_IN
-```
-
-### 3.1 Agent 1 — Prédiction (LightGBM)
-
-- Prévision de la demande par médicament et par pharmacie sur un **horizon de 14 jours**.
-- Projette l'épuisement du stock courant → `date de rupture`, `quantité manquante`, `jours restants`.
-- Se déclenche **sans action humaine** : à chaque mouvement de stock et à chaque avancée du temps simulé.
-- La pénurie prédite fixe automatiquement l'**urgence** du brouillon :
-
-| Jours de stock restants | Urgence |
-|---|---|
-| ≤ 3 | `CRITICAL` |
-| ≤ 7 | `HIGH` |
-| ≤ 14 | `NORMAL` |
-| > 14 | `LOW` |
-
-### 3.2 Agent 2 — Priorité (formule pondérée → RL)
-
-Coefficient 0–100 calculé automatiquement dès que le pharmacien dit « oui ». Implémentation actuelle (déterministe, chaque facteur est exposé dans l'UI pour l'auditabilité) :
-
-| Facteur | Poids | Normalisation |
-|---|---|---|
-| Urgence de la demande | 0,30 | LOW→0 … CRITICAL→1 |
-| Criticité du médicament | 0,25 | score catalogue 0–1 |
-| Chaîne du froid | 0,15 | binaire |
-| Volume demandé | 0,10 | min(1, qté/100) |
-| Patients affectés | 0,10 | min(1, patients/50) |
-| Âge de la demande | 0,10 | min(1, heures/72) |
-
-Le modèle **RL** (apprentissage par renforcement) est prévu pour remplacer cette formule : il se branche derrière la même interface (`PriorityCalculationService`, mode `external`) sans toucher au workflow. **Important** : quand le modèle RL émettra des coefficients 0–1, mettre `priorite.echelle_entree = 1.0` dans `routing-service/config.json` (actuellement `100.0` pour l'échelle 0–100 du backend).
-
-### 3.3 Agent 3 — MILP de routage (milp_care, importé tel quel)
-
-Le backend envoie **toutes les demandes approuvées et toute la flotte active en un seul solve** : le MILP choisit lui-même quels véhicules activer, quelles pharmacies affecter à quel véhicule, et dans quel ordre. Personne ne choisit un camion à la main.
-
-**Fonction objectif minimisée :**
-
-```
-min   Σ coût_km(k)·d(i,j)·x(i,j,k)     — coût de transport (1,10 DT/km, 1,75 réfrigéré)
-    + w_p · Σ pr(i)·L(i)               — retard SLA pondéré par la priorité   (w_p = 5,0)
-    + γ   · Σ pr(i)·s(i)               — heure d'arrivée pondérée (réactivité) (γ = 0,1)
-    + w_v · Σ z(k)                     — coût fixe d'activation d'un véhicule  (w_v = 50)
-```
-
-**Contraintes :** chaque arrêt servi exactement une fois · conservation des flux · départ/retour dépôt par véhicule actif · capacité par véhicule · propagation temporelle (arrivée + déchargement + trajet) · retard `L(i) ≥ s(i) − T(i)` · chaîne du froid ⇒ véhicule réfrigéré obligatoire · durée max de tournée `H_max = 480 min` · time limit solveur 60 s.
-
-**Paramètres dérivés automatiquement (`routing-service/config.json`) :**
-
-| Bloc | Paramètre | Valeur | Signification |
+| Engine | Question it answers | Method | Folder |
 |---|---|---|---|
-| `priorite` | `echelle_entree` | 100.0 | le coefficient backend 0–100 est ramené à 0–1 |
-| `sla` | interpolation | pr 0,66→45 min · pr 0,06→210 min | plus prioritaire ⇒ deadline `T(i)` plus serrée |
-| `sla` | `bonus_chaine_froid_min` | −15 min | le froid resserre encore la deadline (plancher 30 min) |
-| `dechargement` | σ(i) | 3 min + 0,8 min/ligne (max 25) | temps de service par arrêt |
-| `geometrie` | sinuosité · vitesse | à paliers selon la distance (voir config.json) | distances Haversine calibrées sur 13 trajets TomTom réels (Sousse, 18/07/2026) pour le palier urbain ; paliers régional/autoroute ajoutés pour couvrir tout le territoire (voir `docs/roadmap-milp-routing.md`) |
-| `flotte` | coût/km | 1,10 / 1,75 | véhicule standard / réfrigéré |
+| **Demand forecasting** | *Which medicine will run out, when, and how much is missing?* | LightGBM (Poisson objective) | [`demand-forecasting/`](demand-forecasting) |
+| **Priority engine** | *Which requests matter most?* | Weighted clinical score, weights adapted by a PPO reinforcement-learning agent | [`priority-engine/`](priority-engine) |
+| **Route optimization** | *Which truck goes where, in which order, keeping the cold chain?* | Vehicle Routing Problem solved as a MILP (PuLP / CBC) | [`route-optimization/`](route-optimization) |
+| Web platform | Workflow, validations, live tracking | Spring Boot 3.3 + Angular 18 + PostgreSQL | [`backend/`](backend), [`frontend/`](frontend) |
 
-**Politique d'échec : bruyante.** Contrairement à la prédiction (dégradée silencieusement en cas de panne), un échec du solveur **bloque la planification et s'affiche au dépôt** — une mauvaise tournée est pire que pas de tournée. Les demandes restent approuvées et repartent au prochain solve.
+📁 **Data room:** [`Data_Room/`](Data_Room): the technical write-up of each engine, the hackathon specification and the datasets.
 
 ---
 
-## 4. Les deux seuls points de décision humains
+## Contents
+
+1. [How the pieces fit together](#how-the-pieces-fit-together)
+2. [Demand forecasting](#1-demand-forecasting)
+3. [Priority engine](#2-priority-engine)
+4. [Route optimization](#3-route-optimization)
+5. [The platform and its workflow](#the-platform-and-its-workflow)
+6. [Repository layout](#repository-layout)
+7. [Getting started](#getting-started)
+8. [Status and limitations](#status-and-limitations)
+
+---
+
+## How the pieces fit together
 
 ```mermaid
 flowchart LR
-    P1{{"👤 Pharmacien<br/>« Envoyer cette demande ? »"}}
-    P2{{"👤 Dépôt<br/>« Approuver cette tournée ? »"}}
-
-    AUTO1["Prédiction → brouillon auto<br/>(médicament, quantité, urgence)"] --> P1
-    P1 -->|"OUI"| AUTO2["Priorité auto → file dépôt →<br/>approbation demande → solve MILP"]
-    P1 -->|"NON"| REJ1["Ignoré — reproposé si la<br/>pénurie persiste"]
-    AUTO2 --> P2
-    P2 -->|"APPROUVER"| GO["🚚 Départ + tracking live<br/>des deux côtés"]
-    P2 -->|"REFUSER"| REJ2["Tournée annulée — les demandes<br/>restent dans le pot du prochain solve"]
+    STOCK["Pharmacy stock<br/>(sales, adjustments)"] --> F["🔮 Demand forecasting<br/>LightGBM · :8000"]
+    F -->|"shortage ⇒ draft request"| PH{{"👤 Pharmacist<br/>yes / no"}}
+    PH -->|yes| P["⚖️ Priority engine<br/>score 0–1"]
+    P --> DEP{{"👤 Depot<br/>approve request"}}
+    DEP --> R["🗺️ Route optimization<br/>VRP-MILP · :8002"]
+    R -->|"proposed routes"| DEP2{{"👤 Depot<br/>approve route"}}
+    DEP2 --> T["🚚 Live tracking (SSE)<br/>pharmacy + depot"]
 ```
 
-*(L'approbation de la demande côté dépôt est elle aussi un simple approuver/rejeter — la priorité est déjà calculée à son arrivée.)*
+Every arrow is automatic: the backend reacts to events (stock change, simulated time advancing, a "yes", an approval) and calls the next engine by itself.
 
 ---
 
-## 5. Démarrage rapide
+## 1. Demand forecasting
+
+📄 [Full technical write-up](Data_Room/demand_forecasting_overview.pdf)
+
+Pharmacies that reorder only when the shelf is nearly empty run out regularly, because the supplier lead time is longer than what is left on the shelf. This engine replaces that reactive behaviour with an anticipative one.
+
+### What it predicts
+
+For each pharmacy $`i`$, medicine $`m`$ and decision day $`t`$, the model forecasts the total demand over the next $`H = 14`$ days:
+
+```math
+D_{i,m}(t) = \sum_{k=1}^{H} d_{i,m}(t+k)
+```
+
+That forecast becomes a **shortage gap**, using the current stock $`X`$ and a safety stock $`S`$:
+
+```math
+G_{i,m}(t) = \max\left(0,\ \hat{D}_{i,m}(t) + S_{i,m}(t) - X_{i,m}(t)\right)
+```
+
+A restock request of $`\lceil G \rceil`$ units is emitted when $`G > \tau`$ ($`\tau = 3`$ units, to avoid tiny orders). The number of days of stock left sets the urgency: ≤ 3 days `CRITICAL`, ≤ 7 `HIGH`, ≤ 14 `NORMAL`, otherwise `LOW`.
+
+### Data and features
+
+The training data is a two-year daily panel (digital twin) of 8 pharmacies across Tunisian governorates and 15 medicines. It reproduces the real problem: stock follows a reactive $`(s, S)`$ policy, sales are censored ($`\text{sold} = \min(\text{demand}, \text{stock})`$), and demand reacts to exam periods, heatwaves and a winter flu index:
+
+```math
+\text{flu}(t) = \tfrac{1}{2}\left(1 + \cos\frac{2\pi\,\text{doy}(t)}{365.25}\right) \in [0, 1]
+```
+
+Features (all shifted by at least one day, so nothing looks into the future): sales lags (1, 7, 14, 30 days), rolling means (7, 14, 30 days), 14-day stockout pressure, current stock, exam / heatwave / flu signals, calendar (day of week, month, ISO week, season) and categoricals (region, medicine category, medicine id, cold chain).
+
+### Model
+
+Gradient-boosted trees: each new tree $`f_k`$ corrects the errors of the ensemble built so far, with learning rate $`\eta = 0.05`$:
+
+```math
+\hat{F}_K(x) = \hat{F}_0 + \eta \sum_{k=1}^{K} f_k(x), \qquad f_k = \arg\min_f \sum_n L\left(y_n,\ \hat{F}_{k-1}(x_n) + f(x_n)\right)
+```
+
+Demand is a non-negative count, so the loss is the **Poisson** negative log-likelihood (predictions are positive by construction):
+
+```math
+L(y, \mu) = \mu - y \log \mu, \qquad \mu(x) = e^{F(x)}
+```
+
+LightGBM settings: `num_leaves = 63`, `min_data_in_leaf = 100`, feature/bagging fractions 0.8, early stopping (patience 60). A pure-NumPy histogram GBT is used automatically if LightGBM is not available. Validation is a strict **time split**: the last 20 % of the timeline (after 2025-08-01) is held out.
+
+### Results (out-of-sample)
+
+The model has to beat two baselines a pharmacist could compute by hand: a 14-day moving average and a seasonal naïve forecast (same weekday one year earlier).
+
+```math
+\text{WMAPE} = \frac{\sum_n |y_n - \hat{y}_n|}{\sum_n |y_n|} \qquad \text{MAE} = \frac{1}{N}\sum_n |y_n - \hat{y}_n| \qquad \text{Bias} = \frac{1}{N}\sum_n (\hat{y}_n - y_n)
+```
+
+| Model | WMAPE | MAE (units / 14 days) | Bias (units) |
+|---|---|---|---|
+| **LightGBM (Poisson)** | **6.77 %** | **14.8** | **−1.9** |
+| Moving average (14 days) | 8.22 % | 18.0 | −2.7 |
+| Seasonal naïve | 8.48 % | 18.6 | −9.8 |
+
+LightGBM cuts the error by **17.6 %** compared with the best baseline.
+
+<p align="center">
+  <img src="docs/images/forecasting_metrics.png" width="760" alt="WMAPE, MAE and bias of LightGBM versus the two baselines">
+</p>
+
+<table>
+  <tr>
+    <td><img src="docs/images/forecasting_pred_vs_actual.png" alt="Predicted versus actual 14-day demand for the three models"></td>
+    <td><img src="docs/images/forecasting_tracking.png" alt="Actual versus forecast demand over time for Paracetamol and Oseltamivir"></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Predicted vs. actual 14-day demand: LightGBM stays on the diagonal.</em></td>
+    <td align="center"><em>Over time, LightGBM follows the rises as they start; the moving average lags behind, and that lag is what causes stockouts.</em></td>
+  </tr>
+</table>
+
+**Business impact.** When the validation period is replayed with ordering driven by the forecast (3-day delivery lead time) instead of the reactive policy, **stockout-days drop from 14 to 0**.
+
+<table>
+  <tr>
+    <td width="40%"><img src="docs/images/forecasting_stockouts.png" alt="Stockout-days: 14 with the reactive policy, 0 with forecast-driven ordering"></td>
+    <td width="60%"><img src="docs/images/forecasting_feature_importance.png" alt="LightGBM feature importance: rolling sales means dominate"></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Simulated stockout-days.</em></td>
+    <td align="center"><em>Feature importance: the model relies mostly on recent sales levels.</em></td>
+  </tr>
+</table>
+
+**Service:** FastAPI on port 8000. `POST /predict` returns, for each medicine, the predicted shortage date, the days left, the missing quantity, the demand forecast and the urgency.
+
+---
+
+## 2. Priority engine
+
+📄 [Full technical write-up](Data_Room/priority_engine_overview.pdf)
+
+When depot capacity is scarce, this engine decides which requests go first. It turns the Tunisian medicine registry (DPM AMM: 6,058 products, 1,088 active ingredients, or DCI) into a normalized priority score.
+
+### The score
+
+For pharmacy $`i`$ and medicine $`m`$:
+
+```math
+\text{priority}(i, m) = \mathrm{clip}_{[0,1]}\Big( w_0\,\text{criticality}(m) + w_1\,\text{stockout\_risk}(i,m) + w_2\,\text{irreplaceability}(m) + w_3\,\text{cold\_chain}(m) + w_4\,\text{population\_impact}(i,m) + w_5\,\text{made\_in\_tunisia}(m) \Big)
+```
+
+| Factor | Meaning | Source |
+|---|---|---|
+| criticality | Clinical importance, 0 to 1 | Pharmacist annotations, and a LightGBM regressor for the DCIs nobody annotated |
+| stockout_risk | Live shortage risk at this pharmacy | Demand forecasting engine |
+| irreplaceability | Inverse of the number of substitutes (same DCI, same dose) | AMM registry |
+| cold_chain | Needs refrigerated transport | DCI, form and product-type rules |
+| population_impact | Local demand / population weight | Demand forecasting engine |
+| made_in_tunisia | Share of the DCI's products made locally | AMM registry |
+
+### Adaptive weights with reinforcement learning
+
+The weights $`w`$ are not fixed. A **PPO agent** (Stable-Baselines3) observes a 7-number context (stockout rates per medicine class, seasonality, import-disruption and epidemic flags) and outputs bounded changes to the weight logits. A softmax turns the logits into weights that are positive and sum to 1:
+
+```math
+w = \mathrm{softmax}(\ell + \Delta\ell), \qquad \sum_k w_k = 1
+```
+
+It is trained for 30,000 steps in a deliberately scarce simulator: 20 pharmacies, 60 medicines, 26-week episodes, random epidemics and import disruptions. Its reward penalizes unmet chronic demand, unmet cold-chain demand (the heaviest penalty), critical delays and overstock.
+
+**Safety:** if the model fails, returns `NaN`, or gives any weight above 0.85, the service falls back to fixed weights $`[0.55, 0.15, 0.10, 0.10, 0.05, 0.05]`$, and the response says so (`fallback_used: true`).
+
+<table>
+  <tr>
+    <td width="38%"><img src="docs/images/priority_engine_architecture.png" alt="Priority engine architecture: data pipeline, static scoring, digital twin, RL agent, safety check, priority service"></td>
+    <td width="62%"><img src="docs/images/priority_rl_vs_static.png" alt="Adaptive RL versus the best static heuristic over 20 held-out episodes"></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Architecture of the priority engine.</em></td>
+    <td align="center"><em>Adaptive RL vs. the best static weights, 20 held-out episodes.</em></td>
+  </tr>
+</table>
+
+### Results (simulator, 20 held-out episodes)
+
+| KPI | Static weights | PPO | Change |
+|---|---|---|---|
+| Total reward | −10.73 | −7.97 | **+25.7 %** |
+| Critical delay | 21,374 | 15,250 | **−28.7 %** |
+| Cold-chain unmet demand | 6.30 | 6.30 | 0 % |
+| Chronic unmet demand | 31.67 | 335.88 | worse |
+
+PPO improves the overall reward and critical delays, but the saved policy serves chronic demand much worse. That trade-off is reported as-is: it shows where the reward design still needs work. These are simulator results, not a real-world benchmark.
+
+**Service:** FastAPI. `POST /context` updates the depot context, `GET /weights` returns the current weights, and `POST /priority-scores` scores a batch of requests.
+
+---
+
+## 3. Route optimization
+
+📄 [Full technical write-up](Data_Room/route_optimization_overview.pdf)
+
+Once requests are approved, the depot sends **all approved requests and the whole active fleet in a single solve**. The model chooses which trucks to use, which pharmacies each truck serves, and in which order. Nobody picks a truck by hand.
+
+### Model: VRP as a Mixed-Integer Linear Program
+
+**Sets:** nodes $`N = \{0, 1, \dots, n\}`$ (0 is the depot), pharmacies $`C = N \setminus \{0\}`$, vehicles $`K`$.
+
+**Decision variables:**
+
+- $`x_{ijk} \in \{0,1\}`$: vehicle $`k`$ drives from $`i`$ to $`j`$
+- $`z_k \in \{0,1\}`$: vehicle $`k`$ is used
+- $`s_i \in [0, H_{max}]`$: arrival time at node $`i`$ (minutes)
+- $`L_i \ge 0`$: lateness at node $`i`$ beyond its deadline
+
+**Objective:** transport cost + priority-weighted lateness + priority-weighted arrival time + fixed cost per truck used.
+
+```math
+\min\ \sum_{i,j,k} c_k\, d_{ij}\, x_{ijk} \;+\; w_p \sum_{i \in C} pr_i\, L_i \;+\; \gamma \sum_{i \in C} pr_i\, s_i \;+\; w_v \sum_{k} z_k
+```
+
+**Constraints:**
+
+| # | Constraint | Equation |
+|---|---|---|
+| 1 | Every pharmacy is served exactly once | $`\sum_{k}\sum_{i \neq j} x_{ijk} = 1 \quad \forall j \in C`$ |
+| 2 | Flow conservation: a truck that enters a node leaves it | $`\sum_{j} x_{jik} = \sum_{j} x_{ijk} \quad \forall i \in C, k`$ |
+| 3 | A used truck leaves and returns to the depot | $`\sum_{j \in C} x_{0jk} = \sum_{j \in C} x_{j0k} = z_k`$ |
+| 4 | Capacity | $`\sum_{i}\sum_{j \in C} q_j\, x_{ijk} \le Q_k\, z_k`$ |
+| 5 | **Cold chain**: a cold-chain order only rides a refrigerated truck | $`x_{ijk} = 0 \quad \text{if } cc_j = 1 \text{ and } R_k = 0`$ |
+| 6 | Time propagation, which also removes subtours (Big-M) | $`s_j \ge s_i + \sigma_i + t_{ij} - M_{ij}(1 - x_{ijk})`$, with $`M_{ij} = H_{max} + \sigma_i + t_{ij}`$ |
+| 7 | Lateness against the deadline | $`L_i \ge s_i - T_i`$ |
+| 8 | The clock starts at the depot | $`s_0 = 0`$ |
+
+### How the inputs are derived
+
+- **Priority** $`pr_i`$ of a stop = the **max** priority among its order lines: the most critical medicine sets the urgency.
+- **Deadline** $`T_i`$: linear interpolation from the priority, between $`pr = 0.66 \rightarrow 45`$ min and $`pr = 0.06 \rightarrow 210`$ min. Cold chain tightens it by 15 min, with a 30 min floor.
+- **Unloading time** $`\sigma_i = \min(25,\ 3 + 0.8 \times \text{lines})`$ minutes.
+- **Distance and time:** haversine distance × road sinuosity, divided by speed, in three tiers. Under 15 km: 1.6 and 20.9 km/h, calibrated on 13 real TomTom trips in Sousse. Up to 60 km: 1.35 and 55 km/h. Beyond: 1.2 and 85 km/h.
+- **Parameters:** $`w_p = 5`$, $`\gamma = 0.1`$, $`w_v = 50`$, $`H_{max} = 480`$ min, cost 1.10 TND/km (1.75 refrigerated), 60 s solver time limit.
+
+### Why an exact MILP
+
+A continuous relaxation (or a gradient method) returns fractions of trucks, like "send 0.36 truck this way". Rounding them back loses about 18 % of the objective in our comparison (score 371 vs. 451 for the exact MILP). The MILP makes clean 0/1 decisions from the start.
+
+<table>
+  <tr>
+    <td><img src="docs/images/routing_milp_vs_relaxation.png" alt="Binary MILP route versus fractional continuous solution"></td>
+    <td><img src="docs/images/routing_solution_map.png" alt="Optimal routes from the depot: 2 of 3 trucks used, 0 minutes total delay"></td>
+  </tr>
+  <tr>
+    <td align="center"><em>MILP (one whole truck per arc) vs. continuous relaxation (fractions of trucks).</em></td>
+    <td align="center"><em>Optimal solution on a real network: only 2 of the 3 trucks are needed, and total lateness is 0 min.</em></td>
+  </tr>
+</table>
+
+**Failure policy: loud.** If the solver fails, planning stops and the depot sees it: a wrong route is worse than no route. Requests stay approved and go into the next solve.
+
+**Structure:** `route-optimization/milp_solver/` is the solver (model, catalogue, demand aggregation, geometry, scenarios). `route-optimization/api/` is the FastAPI wrapper used by the platform (`POST /optimize`, port 8002).
+
+---
+
+## The platform and its workflow
+
+| Event | Triggered by | Automatic action |
+|---|---|---|
+| `InventoryChanged` | any stock write | re-run the forecast for that pharmacy |
+| `SimulatedTimeChanged` | simulated clock moves forward | re-run the forecast for **all** pharmacies |
+| `ShortagePredicted` | forecasting engine | draft the restock request (medicine, quantity = predicted gap, urgency) |
+| `RequestSubmitted` | pharmacist says "yes" | compute the priority |
+| `RequestApprovedForPlanning` | depot approves | fleet-wide MILP solve of all approved requests (one solve per depot; new approvals re-plan pending proposals, never trucks already on the road) |
+
+- **Backend:** Spring Boot 3.3 / Java 21, PostgreSQL 16 + Flyway, JWT, server-sent events for live updates, GPS simulator (2 s tick).
+- **Frontend:** Angular 18 + Tailwind + Leaflet maps, with separate pharmacy and depot interfaces.
+
+---
+
+## Repository layout
+
+```
+.
+├── demand-forecasting/      # Python · LightGBM forecasting service (:8000)
+│   ├── data/ features/ models/ eval/ shortage/
+│   ├── artifacts/           # trained model, panel, metrics
+│   ├── docs/                # technical report (LaTeX + PDF) and figures
+│   └── tests/
+├── priority-engine/         # Python · AMM pipeline, criticality model, PPO agent, scoring API
+│   ├── src/ data/ models/ docs/
+├── route-optimization/
+│   ├── milp_solver/         # VRP-MILP (PuLP/CBC): config, data, src, scenarios, tests
+│   └── api/                 # FastAPI wrapper used by the platform (:8002)
+├── backend/                 # Spring Boot workflow, API, SSE, GPS simulator (:8080)
+├── frontend/                # Angular 18 UI (:4200)
+├── Data_Room/               # write-ups of the three engines, specs, datasets
+├── docs/images/             # figures used in this README
+└── docker-compose.yml
+```
+
+**Data room contents:** the technical write-up of each engine (`demand_forecasting_overview.pdf`, `priority_engine_overview.pdf`, `route_optimization_overview.pdf`), the hackathon specification and our own specification (`cahier_de_charge_hackathon.pdf`, `chaneb_plus_cahier_des_charges.pdf`), the AMM medicine registry, delivery priorities, the list of potential customers, and fuel price / CO₂ data.
+
+---
+
+## Getting started
 
 ```bash
 cp .env.example .env
-docker compose up --build          # db + backend + frontend + 2 services Python
-# option : docker compose --profile tools up --build   (ajoute Adminer :8081)
+docker compose up --build        # db + backend + frontend + forecasting + routing
+# optional: docker compose --profile tools up --build   (adds Adminer on :8081)
 ```
 
-- **UI :** http://localhost:4200 · **API :** http://localhost:8080 · **Swagger :** http://localhost:8080/swagger-ui.html
-- Comptes seed (mot de passe unique : `Password123!`) :
-  - `depot@stockcare.tn` — dépôt (Depot Central Tunis)
-  - `ph.tunis@stockcare.tn` — Pharmacie Centrale Tunis (0,7 km du dépôt)
-  - `ph.ariana@stockcare.tn` — Pharmacie El Menzah, Ariana (7 km)
-  - `ph.nabeul@stockcare.tn` — Pharmacie Nabeul Centre (63 km)
-  - `ph.sousse@stockcare.tn` — Pharmacie Sousse Medina (116 km)
-  - `ph.sfax@stockcare.tn` — Pharmacie Sfax Ville (235 km)
-  - `ph.marsa@stockcare.tn` — Pharmacie La Marsa (14 km, mock)
-  - `ph.benarous@stockcare.tn` — Pharmacie Ben Arous (6 km, mock)
-  - `ph.hammamet@stockcare.tn` — Pharmacie Hammamet (55 km, mock)
-  - `admin@stockcare.tn` — admin
+- **UI:** http://localhost:4200 · **API:** http://localhost:8080 · **Swagger:** http://localhost:8080/swagger-ui.html
+- Seeded accounts (password `Password123!`): `depot@stockcare.tn` (depot), plus pharmacies `ph.tunis@`, `ph.ariana@`, `ph.nabeul@`, `ph.sousse@`, `ph.sfax@`, `ph.marsa@`, `ph.benarous@`, `ph.hammamet@stockcare.tn`.
 
-  **Démo « vague de 8 demandes » prête à l'emploi** : le seed crée une demande **déjà priorisée** (Agent 2) pour chacune des 8 pharmacies — mélange d'urgences (CRITICAL insuline à Tunis → LOW paracétamol à Ben Arous) et de chaîne du froid (Tunis, Ariana, La Marsa). Connecté dépôt : approuvez les demandes une à une dans Requests et regardez Deliveries — chaque approbation déclenche un re-solve fleet-wide temps réel, et la proposition se réorganise sous vos yeux. Résultat attendu (vérifié avec le vrai solveur) : le camion réfrigéré prend la boucle Grand Tunis dans l'ordre des priorités (Centrale Tunis 84 → La Marsa 70 → El Menzah 67 → Ben Arous 26 en passant), le camion sec prend la boucle sud (Nabeul → Hammamet → Sousse → Sfax). Voir `docs/roadmap-milp-routing.md` pour le correctif de géométrie qui rendait Nabeul/Sousse/Sfax infaisables avant cette itération.
+Everything runs locally: no external API and no key required.
 
-**Scénario de démonstration (2 minutes) :**
-1. Connecté **pharmacie** : baisser un stock (ou avancer l'horloge simulée) → une carte « Proposé pour vous » apparaît → **Oui, envoyer au dépôt**.
-2. Connecté **dépôt** : la demande arrive déjà priorisée → **Approuver** → bannière « MILP optimizer running » → carte de tournée proposée (véhicule choisi par le solveur, arrêts ordonnés, km, ETA) → **Approuver & expédier**.
-3. Le camion se déplace en direct sur la carte du dépôt **et** de la pharmacie (SSE, notifications d'approche et de livraison automatiques).
+**Running an engine on its own:**
 
-Tout tourne en local : aucune API externe, aucune clé requise.
+```bash
+# Demand forecasting: train, evaluate, regenerate the figures, run the tests
+cd demand-forecasting && pip install -r requirements.txt && python run.py && pytest
 
-### Variables d'environnement clés (voir `.env.example`)
+# Route optimization: solver demo + tests, then the API tests
+cd route-optimization/milp_solver && pip install -r requirements.txt && python run.py && pytest
+cd ../api && pip install -r requirements.txt && pytest
 
-| Variable | Défaut compose | Rôle |
-|---|---|---|
-| `STOCKCARE_MODEL_PREDICTION_MODE` | `external` | LightGBM réel (fallback silencieux si service injoignable) |
-| `STOCKCARE_MODEL_ROUTE_MODE` | `external` | MILP réel (échec **bruyant** si injoignable) |
-| `STOCKCARE_WORKFLOW_AUTO_ROUTE` | `true` | approbation ⇒ solve MILP automatique |
-| `STOCKCARE_WORKFLOW_AUTO_ROUTE_REPLAN` | `true` | **re-planification temps réel** : une nouvelle approbation replie les propositions en attente dans un re-solve fleet-wide unique — les tournées proposées reflètent toujours la demande complète du moment. Les livraisons déjà expédiées ne sont jamais rappelées |
-| `STOCKCARE_WORKFLOW_SHORTAGE_ACTION` | `draft` | pénurie prédite ⇒ brouillon automatique |
-| `STOCKCARE_WORKFLOW_AUTO_SUBMIT` | `false` | `true` = saute même le oui/non du pharmacien |
-| `STOCKCARE_ROUTING_TIMEOUT_MS` | `90000` | budget du solve MILP côté backend |
-
----
-
-## 6. Structure du dépôt
-
-```
-backend/               Spring Boot 3.3 (Java 21) — workflow, API, SSE, simulateur GPS
-frontend/              Angular 18 + Tailwind + Leaflet
-prediction-service/    Python — LightGBM / GBT NumPy (:8000)
-routing-service/       Python — FastAPI autour de milp_care (:8002), config.json = tous les réglages solveur
-milp_care/             Solveur VRP-MILP d'origine (importé NON MODIFIÉ via milp_path.py)
-docker-compose.yml     Orchestration complète (le build du routing-service se fait depuis la racine :
-                       l'image a besoin de routing-service/ ET de milp_care/)
+# Priority engine: scoring API
+cd priority-engine && pip install -r requirements.txt
+uvicorn src.api.priority_service:app --port 8001
 ```
 
 ---
 
-## 3bis. Les 3 agents IA en action : pendant la démo
+## Status and limitations
 
-### 📍 Timeline et points clés à observer
+- ✅ Tests pass: demand forecasting (45), MILP solver (53), routing API (17).
+- ✅ Real end-to-end routing: refrigerated truck chosen for cold-chain orders, stops ordered by priority and deadline, pharmacies up to Sfax (235 km) routable thanks to the distance tiers.
+- ⚠️ **The priority engine is not plugged into the platform yet.** The backend currently computes priority with a fixed weighted formula behind the same interface (`PriorityCalculationService`). The PPO service is ready to replace it in `external` mode.
+- ⚠️ All forecasting and priority results come from simulated data (digital twin), not from real pharmacy transactions.
+- ⚠️ GPS tracking is simulated (interpolation along the route).
+- ⚠️ Deadlines are calibrated for urban distances; long national trips are routable but show honest lateness.
 
-| Minute | Quoi ? | Agent mobilisé | À l'écran | Observez… |
-|---|---|---|---|---|
-| ~0:30 | Connexion pharmacie | — | Page login héro avec gradient + pills glassmorphes | Aucun agent en action ; c'est la **refonte UI** |
-| ~1:00 | **Baisse stock (−5) ou +7 jours** | **Agent 1 — Prédiction** | Inventaire + barre de stock rouge | **Dès que** vous validez, LightGBM recalcule en arrière-plan ; le badge « Processing… » / « Up to date » dans l'onglet Predictions le confirme |
-| ~1:45 | Allez voir **Predictions** | Agent 1 | Table des pénuries avec dates rupture & quantités manquantes | C'est LightGBM qui estime : date, jours restants, shortfall (exactitude ~95 %) |
-| ~2:15 | **Accepter la proposition** (Requests) | Agent 2 — Priorité | Carte « Proposed for you » disparaît, demande passe en « SUBMITTED » | Le pharmacien dit juste « OUI » — la quantité et l'urgence ont été **générées par Agent 1** |
-| ~2:45 | Switchover **dépôt** | Agent 2 | Requests : la demande arrive **avec un badge violet** « priority 62 » + facteurs visibles | **Agent 2** (formule pondérée) a calculé 62/100 en 1ms : urgence 30 %, criticité 25 %, froid 15 %, volume 10 %, patients 10 %, âge 10 % |
-| ~3:30 | **Approuver la demande** dépôt | Agent 3 — MILP | Bannière ambre « MILP optimizer running » apparaît | CBC résout le VRP complet : tout l'arriéré approuvé + toute la flotte. Attend max 60 s |
-| ~4:15 | Tournée proposée sur carte | Agent 3 | Carte avec arrêts numérotés, km/durée/ETA, badge « MILP optimal » ou « heuristic » | **Agent 3** a choisi le véhicule, l'ordre des arrêts, calculé l'ETA : aucune main humaine n'a choisi le camion |
-| ~4:45 | **Approuver & expédier** | Simulateur GPS | Camion 🚚 se déplace en temps réel sur la carte | Suivi en direct (SSE, tick 2 s) — simulé mais connecté en vraie donnée temps réel |
-| ~5:30 | Retour **pharmacie** > Deliveries | — | Même camion visible, avec tracking live | Les deux côtés (pharmacie & dépôt) reçoivent le **même flux SSE** |
-
-### 💬 Phrases clés pour chaque agent (à dire pendant la démo)
-
-**Agent 1 — Prédiction (LightGBM)**
-> « Vous venez de baisser le stock. LightGBM prévoit que ce médicament sera épuisé dans 8 jours s'il se vend au rythme normal. Regardez l'onglet Predictions : *up to date* — le calcul a tourné en arrière-plan sans jamais vous bloquer. C'est du non-blocking : vous voyez les résultats dès qu'ils arrivent. »
-
-**Agent 2 — Priorité (formule pondérée)**
-> « Vous avez dit oui à la demande. Le système calcule immédiatement sa priorité : 62/100. Pourquoi 62 ? Parce que c'est urgence HIGH (30 %), le médicament compte pour la santé (criticité 25 %), il faut de la chaîne du froid (15 %), etc. Tous les facteurs sont exposés côté dépôt — on sait pourquoi cette demande est prioritaire. »
-
-**Agent 3 — MILP (routage)**
-> « Le dépôt approuve. Aussitôt, le solveur MILP prend toutes les demandes approuvées et choisit : quel camion, quel ordre d'arrêt, pour minimiser la distance et respecter les priorités. Regardez la carte : ce n'est pas un humain qui a décidé que c'est le camion réfrigéré — c'est le MILP, parce que la commande inclut du froid. Les arrêts sont ordonnés par priorité et SLA. »
-
-### ✅ Checklist pour vous avant la démo
-
-- [ ] Comptes seed chargés (`ph.tunis@stockcare.tn` / `depot@stockcare.tn`)
-- [ ] `docker compose up --build` lancé — tous les services verts (frontend :4200, backend :8080, prediction :8000, routing :8002, db :5432)
-- [ ] Un stock préparé prêt à baisser (ex. : paracétamol actuellement à 50 unités)
-- [ ] SSE / WebSocket actif (page ne doit pas lag quand vous changez d'onglet)
-- [ ] Temps simulé visible côté pharmacie (badge ambre en haut à droite) — optionnel mais renforce le "contexte complet"
-
-### ⚡ Si un agent échoue pendant la démo
-
-| Agent | Symptôme | Récupération |
-|---|---|---|
-| **1 — Prédiction** | Predictions reste vide après 10 s | Cliquer sur le badge rouge « FAILED » → « Retry » — LightGBM fallback à GBT NumPy maison |
-| **2 — Priorité** | Badge priorité manquant côté dépôt | Normal en MVP initial ; formule pondérée est **toujours** disponible (pas de fallback) |
-| **3 — MILP** | Bannière « FAILED » apparaît, pas de tournée proposée | **Critère critique** — les demandes restent approuvées, elles repartent au prochain solve. Dire : « Le solveur n'a pas trouvé de solution en 60 s ; on réessayera automatiquement. » |
-
----
-
-## 7. État actuel & limitations connues
-
-- ✅ Routing-service : 17 tests verts (dont la non-régression géométrie nationale) ; solve réel vérifié de bout en bout (choix du véhicule réfrigéré pour la chaîne du froid, ordre par priorité/SLA).
-- ✅ **Temps réel de bout en bout** : le mode `external` (vrai MILP) et `auto-route` sont maintenant les défauts *aussi hors Docker Compose* (`application.yml` pointe sur `localhost:8000/8002`) — plus de retombée silencieuse sur le routeur glouton en lançant le backend depuis l'IDE. Et avec `AUTO_ROUTE_REPLAN`, chaque nouvelle approbation re-résout toute la demande en attente en un seul solve : les propositions périmées sont automatiquement remplacées (jamais les livraisons expédiées).
-- ✅ Frontend : build de production vérifié + **refonte UI premium** avec dark mode, animations, responsive design.
-- ⚠️ Le backend Java n'a pas encore été compilé dans un environnement avec JDK/Maven — le premier `docker compose up --build` peut révéler des erreurs de compilation ou la validation Hibernate des requêtes HQL au démarrage (elles ne se voient qu'au boot).
-- ⚠️ L'agent Priorité est la formule pondérée décrite en §3.2 — le modèle RL est un branchement futur derrière la même interface.
-- Le tracking GPS est simulé (interpolation le long de la polyline de la tournée, tick 2 s) — remplaçable par un vrai flux GPS derrière `TrackingBroadcaster`.
+The priority engine was developed in [`mohamedazizncir/layer2_hackathon`](https://github.com/mohamedazizncir/layer2_hackathon) and is included here so that the whole system lives in one repository.

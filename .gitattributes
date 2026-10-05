@@ -14,5 +14,5 @@
 *.parquet binary
 
 # Model artifact and data are large text blobs — keep as-is, don't diff
-prediction-service/artifacts/model.txt -diff
-prediction-service/artifacts/panel.csv -diff
+demand-forecasting/artifacts/model.txt -diff
+demand-forecasting/artifacts/panel.csv -diff

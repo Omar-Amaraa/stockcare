@@ -21,8 +21,12 @@ frontend/.angular/
 .DS_Store
 Thumbs.db
 
-# Python (prediction-service)
+# Python
 __pycache__/
 *.pyc
-prediction-service/.venv/
+**/.venv/
 .pytest_cache/
+
+# Local-only material (old clones, drafts)
+_private/
+design-previews/

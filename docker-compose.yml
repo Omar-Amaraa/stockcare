@@ -20,7 +20,7 @@ services:
 
   prediction-service:
     build:
-      context: ./prediction-service
+      context: ./demand-forecasting
     container_name: stockcare-prediction
     environment:
       PYTHONUNBUFFERED: "1"
@@ -31,9 +31,9 @@ services:
 
   routing-service:
     build:
-      # Root context: the image needs both routing-service/ and milp_care/ sources.
-      context: .
-      dockerfile: routing-service/Dockerfile
+      # route-optimization/ context: the image needs both the API and the MILP solver sources.
+      context: ./route-optimization
+      dockerfile: api/Dockerfile
     container_name: stockcare-routing
     environment:
       PYTHONUNBUFFERED: "1"
